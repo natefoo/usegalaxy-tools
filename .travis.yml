@@ -9,18 +9,12 @@ language: minimal
 before_install:
   - sudo mkdir /lower /upper /work /cvmfs /cvmfs/sandbox.galaxyproject.org /etc/cvmfs
   - curl -O https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest_all.deb
-  - sudo apt-get update
-  - sudo apt-get install --no-install-recommends -y lsb-release
+  #- sudo apt-get update
+  #- sudo apt-get install --no-install-recommends -y lsb-release
   - sudo dpkg -i cvmfs-release-latest_all.deb
   - sudo apt-get update
   - sudo apt-get install --no-install-recommends -y cvmfs
-  - |
-    cat > default.local << EOF
-    CVMFS_SERVER_URL=http://cvmfs1-psu0.galaxyproject.org/cvmfs/@fqrn@;http://cvmfs1-iu0.galaxyproject.org/cvmfs/@fqrn@;http://cvmfs1-tacc0.galaxyproject.org/cvmfs/@fqrn@
-    CVMFS_REPOSITORIES=test.galaxyproject.org,main.galaxyproject.org,data.galaxyproject.org,sandbox.galaxyproject.org,singularity.galaxyproject.org
-    CVMFS_HTTP_PROXY=DIRECT
-    EOF
-  - sudo mv default.local /etc/cvmfs
+  - sudo cp .ci/default.local /etc/cvmfs
   - sudo mount -t cvmfs sandbox.galaxyproject.org /lower
   - ls -l /lower
   - sudo mount -t overlay overlay -o lower=/lower,upper=/upper,work=/work /cvmfs/sandbox.galaxyproject.org
