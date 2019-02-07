@@ -7,12 +7,42 @@ dist: xenial
 language: minimal
 
 before_install:
+  - TOOL_YAMLS=("common_toolset/get_data.yml.lock")
+  - echo 'Detecting changes to common_toolset/...'
+  - git diff --quiet "$TRAVIS_COMMIT_RANGE" --; GIT_DIFF_EXIT_CODE=$?
+  - |
+    if [ "$GIT_DIFF_EXIT_CODE" -gt 1 ]; then
+        git remote set-branches --add origin master
+        git fetch
+        TRAVIS_COMMIT_RANGE=origin/master...
+    fi
+  - echo "\$TRAVIS_COMMIT_RANGE is $TRAVIS_COMMIT_RANGE"
+  - |
+    while read op path; do
+        case "${path##*.}" in
+            lock)
+                ;;
+            *)
+                continue
+                ;;
+        esac
+        case "$op" in
+            A|M)
+                echo "$op $path"
+                TOOL_YAMLS+=("${path}")
+                ;;
+        esac
+    done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- common_toolset/)
+  - set | grep '^TOOL_YAMLS='
+  - |
+    if [ ${#TOOL_YAMLS[@]} -eq 0 ]; then
+        echo 'No common_toolset changes, terminating'
+        travis_terminate 0
+    fi
   - sudo groupadd --gid 1450 cvmfs
   - sudo useradd --uid 1450 --gid 1450 cvmfs
   - sudo mkdir /lower /upper /work /cvmfs /cvmfs/sandbox.galaxyproject.org
   - curl -O https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest_all.deb
-  #- sudo apt-get update
-  #- sudo apt-get install --no-install-recommends -y lsb-release
   - sudo dpkg -i cvmfs-release-latest_all.deb
   - sudo apt-get update
   - sudo apt-get install --no-install-recommends -y cvmfs
@@ -35,9 +65,36 @@ install:
     -v $(pwd)/.ci/job_conf.xml:/job_conf.xml
     -e GALAXY_CONFIG_JOB_CONFIG_FILE=/job_conf.xml
     bgruening/galaxy-stable
-  - galaxy-wait -v --timeout 120 || { docker exec galaxy cat /var/log/nginx/error.log /home/galaxy/logs/uwsgi.log; curl http://localhost:8080; travis_terminate 1; }
+  - |
+    galaxy-wait -v --timeout 120 || {
+        echo "#### TIMED OUT WAITING FOR GALAXY ####";
+        for f in /var/log/nginx/error.log /home/galaxy/logs/uwsgi.log; do
+            echo "#### CONTENTS OF ${f}:";
+            docker exec galaxy cat $f;
+        done;
+        echo "#### RESPONSE FROM http://localhost:8080:";
+        curl http://localhost:8080;
+        echo "#### TERMINATING BUILD";
+        travis_terminate 1;
+    }
 
 script:
-  - shed-tools install -v -a deadbeef -t ./common_toolset/get_data.yml.lock --test --test_json tests.json || { docker exec galaxy cat /home/galaxy/logs/uwsgi.log; travis_terminate 1; }
-  - planemo test_reports --test_output_text tests.txt tests.json && cat tests.txt || { cat tests.json; travis_terminate 1; }
+  - |
+    for tool_yaml in "${TOOL_YAMLS[@]}"; do
+        shed-tools install -v -a deadbeef -t "$tool_yaml" --test --test_json "${tool_yaml##*/}"-test.json || {
+            # TODO: test here if test failures should be ignored (but we can't separate test failures from install
+            # failures at the moment)
+            true || {
+                echo "#### TOOL INSTALL/TEST FAILED ####";
+                echo "#### CONTENTS OF /home/galaxy/logs/uwsgi.log:";
+                docker exec galaxy cat /home/galaxy/logs/uwsgi.log;
+                echo "#### TERMINATING BUILD";
+                travis_terminate 1;
+            };
+        }
+    done
+  - |
+    for tool_yaml in "${TOOL_YAMLS[@]}"; do
+        planemo test_reports --test_output_text tests.txt tests.json && cat tests.txt
+    done
   - ls -lR /upper
