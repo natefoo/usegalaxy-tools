@@ -18,7 +18,7 @@ before_install:
   - sudo cp .ci/sandbox.galaxyproject.org.pub /etc/cvmfs/keys
   - sudo mount -t cvmfs sandbox.galaxyproject.org /lower
   - ls -l /lower
-  - sudo mount -t overlay overlay -o lower=/lower,upper=/upper,work=/work /cvmfs/sandbox.galaxyproject.org
+  - sudo mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work /cvmfs/sandbox.galaxyproject.org
   - ls -l /cvmfs/sandbox.galaxyproject.org
 
 script:
