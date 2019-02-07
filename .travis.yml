@@ -106,6 +106,8 @@ after_success:
   - eval "$(ssh-agent -s)"
   - chmod 600 .ci/deploy_key.pem
   - ssh-add .ci/deploy_key.pem
+  - sudo find /upper -perm -u+r -not -perm -o+r -not -type l -print0 | sudo xargs -0 --no-run-if-empty chmod go+r
+  - sudo find /upper -perm -u+rx -not -perm -o+rx -not -type l -print0 | sudo xargs -0 --no-run-if-empty chmod go+rx
   - ssh sandbox@cvmfs0-psu0.galaxyproject.org cvmfs_server transaction sandbox.galaxyproject.org
   - |
     rsync -av /upper/ sandbox@cvmfs0-psu0.galaxyproject.org:/cvmfs/sandbox.galaxyproject.org || {
