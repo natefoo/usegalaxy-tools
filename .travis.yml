@@ -95,6 +95,22 @@ script:
     done
   - |
     for tool_yaml in "${TOOL_YAMLS[@]}"; do
-        planemo test_reports --test_output_text tests.txt tests.json && cat tests.txt
+        planemo test_reports --test_output_text tests.txt "${tool_yaml##*/}"-test.json && cat tests.txt
     done
-  - ls -lR /upper
+
+after_success:
+  - openssl aes-256-cbc -K $encrypted_0ffba610202a_key -iv $encrypted_0ffba610202a_iv -in .ci/deploy_key.pem.enc -out .ci/deploy_key.pem -d
+  - echo 'cvmfs0-psu0.galaxyproject.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGaFllzcKadhpbZ6hNXSgIfgYspqR+IB7NVxJf3FFqZr' >> $HOME/.ssh/known_hosts
+  - echo 'cvmfs0-psu0.galaxyproject.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDF4SgjupC+Te9Qx67srgaEtmFV+LjoNtLTndJwQieLDzwbcYNQoezeu4H4ijmQaL9U5oXA+l3IFL6znRxupAS21uMukqOChVfpMzuda36jcw+Eghuhfk+ZSB4A4FwMtoNJvWNgp+xNBjx0gaHM0oY7XFlACr/T48bAPUtMVrrRje70I6L6lN9oJFfVq1YyyjwZjvGzl2ffO7MzMAamphqfBpv15NFHa1jlDt5czaniJi4SLKCQoa8qZJYkdvtih71v9uP9Dhjwtau0QtPdIUrIt4T0VUjqO+ne1a9YndOLU3QGctDZHdnjklC7wbZlTy7NUKECva5nxYi2d9KwjlUh' >> $HOME/.ssh/known_hosts
+  - echo 'cvmfs0-psu0.galaxyproject.org ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNQupx1g6IkWVabJSscujjkFDDNfgyZtiSB6pwsgwnwpSI4C/oW5CZC2/zQBdecdJw9Mua5ImSp7KxdWk6OrWco=' >> $HOME/.ssh/known_hosts
+  - eval "$(ssh-agent -s)"
+  - chmod 600 .ci/deploy_key.pem
+  - ssh-add .ci/deploy_key.pem
+  - ssh sandbox@cvmfs0-psu0.galaxyproject.org cvmfs_server transaction sandbox.galaxyproject.org
+  - |
+    rsync -av /upper/ sandbox@cvmfs0-psu0.galaxyproject.org:/cvmfs/sandbox.galaxyproject.org || {
+        echo "#### RSYNC FAILED, ABORTING TRANSACTION";
+        ssh sandbox@cvmfs0-psu0.galaxyproject.org cvmfs_server abort -f sandbox.galaxyproject.org;
+        travis_terminate 1;
+    }
+  - ssh sandbox@cvmfs0-psu0.galaxyproject.org cvmfs_server publish -m "Automated tool install for commit $TRAVIS_COMMIT" sandbox.galaxyproject.org
