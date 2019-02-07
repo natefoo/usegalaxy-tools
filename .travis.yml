@@ -15,7 +15,15 @@ before_install:
   - sudo apt-get update
   - sudo apt-get install --no-install-recommends -y cvmfs
   - sudo cp .ci/default.local /etc/cvmfs
-  - sudo mount -t cvmfs sandbox.galaxyproject.org /lower
+  - sudo cvmfs_config chksetup
+  - sudo mount -t cvmfs sandbox.galaxyproject.org /lower || true
+  - sudo dmesg | grep cvmfs
+  - sudo dmesg | tail
+  - sudo cat /tmp/cvmfs.log || true
+  - sudo ls /var/log
+  - sudo tail /var/log/messages || true
+  - sudo tail /var/log/syslog || true
+  - travis_terminate 1
   - ls -l /lower
   - sudo mount -t overlay overlay -o lower=/lower,upper=/upper,work=/work /cvmfs/sandbox.galaxyproject.org
   - ls -l /cvmfs/sandbox.galaxyproject.org
