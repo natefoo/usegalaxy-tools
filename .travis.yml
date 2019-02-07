@@ -36,6 +36,6 @@ install:
   - galaxy-wait -v --timeout 120 || { docker exec galaxy cat /var/log/nginx/error.log /home/galaxy/logs/uwsgi.log; curl http://localhost:8080; travis_terminate 1; }
 
 script:
-  - shed-tools install -v -a deadbeef -t ./common_toolset/get_data.yml --test --test_json tests.json || { docker exec galaxy cat /home/galaxy/logs/uwsgi.log; travis_terminate 1; }
+  - shed-tools install -v -a deadbeef -t ./common_toolset/get_data.yml.lock --test --test_json tests.json || { docker exec galaxy cat /home/galaxy/logs/uwsgi.log; travis_terminate 1; }
   - planemo test_reports test_output_text tests.txt tests.json && cat tests.txt || { cat tests.json; travis_terminate 1; }
   - ls -lR /upper
