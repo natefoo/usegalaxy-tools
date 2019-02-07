@@ -3,7 +3,7 @@ services:
   - docker
 
 os: linux
-dist: bionic
+dist: xenial
 language: minimal
 
 before_install:
@@ -20,7 +20,7 @@ before_install:
   - sudo cp .ci/sandbox.galaxyproject.org.pub /etc/cvmfs/keys
   - sudo mount -t cvmfs sandbox.galaxyproject.org /lower
   - sudo mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work /cvmfs/sandbox.galaxyproject.org
-  - pip install ephemeris planemo
+  - sudo pip install ephemeris planemo
 
 script:
   - >-
