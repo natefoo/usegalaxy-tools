@@ -7,7 +7,7 @@ dist: bionic
 language: minimal
 
 before_install:
-  - sudo mkdir /lower /upper /work /cvmfs /cvmfs/sandbox.galaxyproject.org /etc/cvmfs
+  - sudo mkdir /lower /upper /work /cvmfs /cvmfs/sandbox.galaxyproject.org
   - curl -O https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest_all.deb
   #- sudo apt-get update
   #- sudo apt-get install --no-install-recommends -y lsb-release
@@ -15,7 +15,8 @@ before_install:
   - sudo apt-get update
   - sudo apt-get install --no-install-recommends -y cvmfs
   - sudo cp .ci/default.local /etc/cvmfs
-  - sudo cvmfs_config chksetup
+  - sudo cp .ci/sandbox.galaxyproject.org.pub /etc/cvmfs/keys
+  - sudo cvmfs_config chksetup || true
   - sudo mount -t cvmfs sandbox.galaxyproject.org /lower || true
   - sudo dmesg | grep cvmfs
   - sudo dmesg | tail
