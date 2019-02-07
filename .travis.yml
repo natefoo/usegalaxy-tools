@@ -25,13 +25,13 @@ before_install:
 script:
   - >-
     docker run -d -p 8080:80
-      -e GALAXY_CONFIG_INSTALL_DATABASE_CONNECTION=sqlite:////cvmfs/sandbox.galaxyproject.org/config/install.sqlite
-      -e GALAXY_CONFIG_TOOL_CONFIG_FILE=/cvmfs/sandbox.galaxyproject.org/config/shed_tool_conf.xml
-      -e GALAXY_CONFIG_MASTER_API_KEY=deadbeef
-      -e GALAXY_CONFIG_CONDA_PREFIX=/cvmfs/sandbox.galaxyproject.org/dependencies/conda
-      -e CONDARC=/cvmfs/sandbox.galaxyproject.org/dependencies/_condarc
-      -v /cvmfs/usegalaxy.galaxyproject.org:/cvmfs/usegalaxy.galaxyproject.org
-      bgruening/galaxy-stable
+    -e GALAXY_CONFIG_INSTALL_DATABASE_CONNECTION=sqlite:////cvmfs/sandbox.galaxyproject.org/config/install.sqlite
+    -e GALAXY_CONFIG_TOOL_CONFIG_FILE=/cvmfs/sandbox.galaxyproject.org/config/shed_tool_conf.xml
+    -e GALAXY_CONFIG_MASTER_API_KEY=deadbeef
+    -e GALAXY_CONFIG_CONDA_PREFIX=/cvmfs/sandbox.galaxyproject.org/dependencies/conda
+    -e CONDARC=/cvmfs/sandbox.galaxyproject.org/dependencies/_condarc
+    -v /cvmfs/usegalaxy.galaxyproject.org:/cvmfs/usegalaxy.galaxyproject.org
+    bgruening/galaxy-stable
   - galaxy-wait -v --timeout 300
   - shed-tools install -v -a deadbeef -t ./common_toolset/get_data.yml --test --test_json tests.json
   - planemo test_reports test_output_text tests.txt tests.json
