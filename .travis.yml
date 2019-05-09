@@ -48,7 +48,7 @@ before_install:
                 TOOL_YAMLS+=("${path}")
                 ;;
         esac
-    done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- $(for d in "${!TOOLSET_REPOS[@]}"; do echo "${d}/"; done); echo "M common_toolset/filter_and_sort.yml.lock")
+    done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- $(for d in "${!TOOLSET_REPOS[@]}"; do echo "${d}/"; done; echo "M common_toolset/filter_and_sort.yml.lock"))
   # FIXME: remove hardcoded tool above
   - set | grep '^TOOL'
   - |
