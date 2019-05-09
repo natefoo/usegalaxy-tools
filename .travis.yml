@@ -45,7 +45,8 @@ before_install:
         esac
     done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- $(for d in "${!TOOLSET_REPOS[@]}"; do echo "${d}/"; done); echo "M common_toolset/filter_and_sort.yml.lock")
   # FIXME: remove hardcoded tool above
-  - set | grep '^TOOL_YAMLS='
+  - set | grep '^TOOL'
+  - echo "${#TOOLSETS[@]}" "${!TOOLSETS[@]}" "${TOOLSETS[@]}"
   - |
     if [ ${#TOOL_YAMLS[@]} -eq 0 ]; then
         echo 'No tool changes, terminating'
