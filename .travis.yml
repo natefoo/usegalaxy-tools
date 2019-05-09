@@ -8,7 +8,18 @@ language: minimal
 
 before_install:
   - TOOL_YAMLS=("common_toolset/filter_and_sort.yml.lock")
-  - echo 'Detecting changes to common_toolset/...'
+  - >-
+    declare -A TOOLSET_REPOS=(
+      [common_toolset]=sandbox.galaxyproject.org
+      [test.galaxyproject.org]=test.galaxyproject.org
+    )
+  - >-
+    declare -A REPO_USERS=(
+      [sandbox.galaxyproject.org]=sandbox
+      [test.galaxyproject.org]=g2test
+    )
+  - declare -A TOOLSETS
+  - echo 'Detecting changes to tool files...'
   - git diff --quiet "$TRAVIS_COMMIT_RANGE" --; GIT_DIFF_EXIT_CODE=$?
   - |
     if [ "$GIT_DIFF_EXIT_CODE" -gt 1 ]; then
@@ -30,38 +41,49 @@ before_install:
             A|M)
                 echo "$op $path"
                 TOOL_YAMLS+=("${path}")
+                TOOLSETS[${path%%/*}]=
                 ;;
         esac
-    done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- common_toolset/)
+    done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- "${!TOOLSET_REPOS[@]}"/)
   - set | grep '^TOOL_YAMLS='
   - |
     if [ ${#TOOL_YAMLS[@]} -eq 0 ]; then
-        echo 'No common_toolset changes, terminating'
+        echo 'No tool changes, terminating'
         travis_terminate 0
+    elif [ ${#TOOLSETS[@]} -gt 1 ]; then
+        echo 'ERROR: Changes to tools in multiple toolsets found, terminating:' "${!TOOLSETS[@]}"
+        travis_terminate 1
+    fi
+  - TOOLSET="${!TOOLSETS[@]}"
+  - REPO="${TOOLSET_REPOS[$TOOLSET]}"
+  - |
+    if [ -z "$REPO" ]; then
+        echo "ERROR: No repo defined for toolset $TOOLSET, set one in \$TOOLSET_REPOS"
+        travis_terminate 1
     fi
   - sudo groupadd --gid 1450 cvmfs
   - sudo useradd --uid 1450 --gid 1450 cvmfs
-  - sudo mkdir /lower /upper /work /cvmfs /cvmfs/sandbox.galaxyproject.org
+  - sudo mkdir /lower /upper /work /cvmfs /cvmfs/${REPO}
   - curl -O https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest_all.deb
   - sudo dpkg -i cvmfs-release-latest_all.deb
   - sudo apt-get update
   - sudo apt-get install --no-install-recommends -y cvmfs
   - sudo cp .ci/default.local /etc/cvmfs
-  - sudo cp .ci/sandbox.galaxyproject.org.pub /etc/cvmfs/keys
-  - sudo mount -t cvmfs sandbox.galaxyproject.org /lower
-  - sudo mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work /cvmfs/sandbox.galaxyproject.org
+  - sudo cp .ci/*.pub /etc/cvmfs/keys
+  - sudo mount -t cvmfs "$REPO" "/lower/${REPO}"
+  - sudo mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work" "/cvmfs/${REPO}"
 
 install:
   - sudo pip install ephemeris planemo
   - >-
     docker run -d -p 8080:80 --name=galaxy
-    -e GALAXY_CONFIG_INSTALL_DATABASE_CONNECTION=sqlite:////cvmfs/sandbox.galaxyproject.org/config/install.sqlite
-    -e GALAXY_CONFIG_TOOL_CONFIG_FILE=/cvmfs/sandbox.galaxyproject.org/config/shed_tool_conf.xml
+    -e GALAXY_CONFIG_INSTALL_DATABASE_CONNECTION=sqlite:////cvmfs/${REPO}/config/install.sqlite
+    -e GALAXY_CONFIG_TOOL_CONFIG_FILE=/cvmfs/${REPO}/config/shed_tool_conf.xml
     -e GALAXY_CONFIG_MASTER_API_KEY=deadbeef
-    -e GALAXY_CONFIG_CONDA_PREFIX=/cvmfs/sandbox.galaxyproject.org/dependencies/conda
+    -e GALAXY_CONFIG_CONDA_PREFIX=/cvmfs/${REPO}/dependencies/conda
     -e GALAXY_HANDLER_NUMPROCS=0
-    -e CONDARC=/cvmfs/sandbox.galaxyproject.org/dependencies/_condarc
-    -v /cvmfs/sandbox.galaxyproject.org:/cvmfs/sandbox.galaxyproject.org
+    -e CONDARC=/cvmfs/${REPO}/dependencies/_condarc
+    -v /cvmfs/${REPO}:/cvmfs/${REPO}
     -v $(pwd)/.ci/job_conf.xml:/job_conf.xml
     -e GALAXY_CONFIG_JOB_CONFIG_FILE=/job_conf.xml
     bgruening/galaxy-stable
@@ -110,11 +132,13 @@ after_success:
   - ssh-add .ci/deploy_key.pem
   - sudo find /upper -perm -u+r -not -perm -o+r -not -type l -print0 | sudo xargs -0 --no-run-if-empty chmod go+r
   - sudo find /upper -perm -u+rx -not -perm -o+rx -not -type l -print0 | sudo xargs -0 --no-run-if-empty chmod go+rx
-  - ssh sandbox@cvmfs0-psu0.galaxyproject.org cvmfs_server transaction sandbox.galaxyproject.org
+  - USER=${REPO_USERS[$REPO]}
+  - ssh ${USER}@cvmfs0-psu0.galaxyproject.org cvmfs_server transaction ${REPO}
   - |
-    rsync -av /upper/ sandbox@cvmfs0-psu0.galaxyproject.org:/cvmfs/sandbox.galaxyproject.org || {
+    rsync -av /upper/ ${USER}@cvmfs0-psu0.galaxyproject.org:/cvmfs/${REPO} || {
         echo "#### RSYNC FAILED, ABORTING TRANSACTION";
-        ssh sandbox@cvmfs0-psu0.galaxyproject.org cvmfs_server abort -f sandbox.galaxyproject.org;
+        ssh ${USER}@cvmfs0-psu0.galaxyproject.org cvmfs_server abort -f ${REPO};
         travis_terminate 1;
     }
-  - ssh sandbox@cvmfs0-psu0.galaxyproject.org "cvmfs_server publish -m 'Automated tool install for commit $TRAVIS_COMMIT' sandbox.galaxyproject.org"
+  - echo ssh ${USER}@cvmfs0-psu0.galaxyproject.org "cvmfs_server publish -m 'Automated tool install for commit $TRAVIS_COMMIT' ${REPO}"
+  - ssh ${USER}@cvmfs0-psu0.galaxyproject.org "cvmfs_server abort -f ${REPO}"
