@@ -17,7 +17,7 @@ before_install:
       [sandbox.galaxyproject.org]=sandbox
       [test.galaxyproject.org]=g2test
     )
-  - declare -A TOOLSETS
+  - TOOLSET=
   - echo 'Detecting changes to tool files...'
   - git diff --quiet "$TRAVIS_COMMIT_RANGE" --; GIT_DIFF_EXIT_CODE=$?
   - |
@@ -29,6 +29,12 @@ before_install:
   - echo "\$TRAVIS_COMMIT_RANGE is $TRAVIS_COMMIT_RANGE"
   - |
     while read op path; do
+        if [ -n "$TOOLSET" -a "$TOOLSET" != "${path%%/*}" ]; then
+            echo 'ERROR: Changes to tools in multiple toolsets found, terminating:' "${!TOOLSETS[@]}"
+            travis_terminate 1
+        elif [ -z "$TOOLSET" ]; then
+            TOOLSET="${path%%/*}"
+        fi
         case "${path##*.}" in
             lock)
                 ;;
@@ -40,24 +46,16 @@ before_install:
             A|M)
                 echo "$op $path"
                 TOOL_YAMLS+=("${path}")
-                echo "TOOLSET: ${path%%/*}"
-                toolset=${path%%/*}
-                TOOLSETS[$toolset]=
                 ;;
         esac
     done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- $(for d in "${!TOOLSET_REPOS[@]}"; do echo "${d}/"; done); echo "M common_toolset/filter_and_sort.yml.lock")
   # FIXME: remove hardcoded tool above
   - set | grep '^TOOL'
-  - echo "${#TOOLSETS[@]}" "${!TOOLSETS[@]}" "${TOOLSETS[@]}"
   - |
     if [ ${#TOOL_YAMLS[@]} -eq 0 ]; then
         echo 'No tool changes, terminating'
         travis_terminate 0
-    elif [ ${#TOOLSETS[@]} -gt 1 ]; then
-        echo 'ERROR: Changes to tools in multiple toolsets found, terminating:' "${!TOOLSETS[@]}"
-        travis_terminate 1
     fi
-  - TOOLSET="${!TOOLSETS[@]}"
   - REPO="${TOOLSET_REPOS[$TOOLSET]}"
   - |
     if [ -z "$REPO" ]; then
