@@ -30,7 +30,7 @@ before_install:
   - |
     while read op path; do
         if [ -n "$TOOLSET" -a "$TOOLSET" != "${path%%/*}" ]; then
-            echo 'ERROR: Changes to tools in multiple toolsets found, terminating:' "${!TOOLSETS[@]}"
+            echo "ERROR: Changes to tools in multiple toolsets found, terminating: ${TOOLSET} != ${path%%/*}"
             travis_terminate 1
         elif [ -z "$TOOLSET" ]; then
             TOOLSET="${path%%/*}"
