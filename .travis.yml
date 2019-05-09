@@ -7,7 +7,6 @@ dist: xenial
 language: minimal
 
 before_install:
-  - TOOL_YAMLS=("common_toolset/filter_and_sort.yml.lock")
   - >-
     declare -A TOOLSET_REPOS=(
       [common_toolset]=sandbox.galaxyproject.org
@@ -44,7 +43,8 @@ before_install:
                 TOOLSETS[${path%%/*}]=
                 ;;
         esac
-    done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- "${!TOOLSET_REPOS[@]}"/)
+    done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- $(for d in "${!TOOLSET_REPOS[@]}"; do echo "${d}/"; done); echo "M common_toolset/filter_and_sort.yml.lock")
+  # FIXME: remove hardcoded tool above
   - set | grep '^TOOL_YAMLS='
   - |
     if [ ${#TOOL_YAMLS[@]} -eq 0 ]; then
