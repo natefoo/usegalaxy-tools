@@ -40,6 +40,7 @@ before_install:
             A|M)
                 echo "$op $path"
                 TOOL_YAMLS+=("${path}")
+                echo "TOOLSET: ${path%%/*}"
                 TOOLSETS[${path%%/*}]=
                 ;;
         esac
@@ -76,6 +77,7 @@ before_install:
 
 install:
   - sudo pip install ephemeris planemo
+  # FIXME: conda path below is incorrect for test/main
   - >-
     docker run -d -p 8080:80 --name=galaxy
     -e GALAXY_CONFIG_INSTALL_DATABASE_CONNECTION=sqlite:////cvmfs/${REPO}/config/install.sqlite
