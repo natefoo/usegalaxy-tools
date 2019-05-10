@@ -17,6 +17,11 @@ before_install:
       [sandbox.galaxyproject.org]=sandbox
       [test.galaxyproject.org]=g2test
     )
+  - >-
+    declare -g -A CONDA_PATHS=(
+      [sandbox.galaxyproject.org]=/cvmfs/sandbox.galaxyproject.org/dependencies/conda
+      [test.galaxyproject.org]=/cvmfs/test.galaxyproject.org/deps/_conda
+    )
   - echo 'Detecting changes to tool files...'
   - git diff --quiet "$TRAVIS_COMMIT_RANGE" --; GIT_DIFF_EXIT_CODE=$?
   - |
@@ -83,7 +88,7 @@ install:
     -e GALAXY_CONFIG_INSTALL_DATABASE_CONNECTION=sqlite:////cvmfs/${REPO}/config/install.sqlite
     -e GALAXY_CONFIG_TOOL_CONFIG_FILE=/cvmfs/${REPO}/config/shed_tool_conf.xml
     -e GALAXY_CONFIG_MASTER_API_KEY=deadbeef
-    -e GALAXY_CONFIG_CONDA_PREFIX=/cvmfs/${REPO}/dependencies/conda
+    -e GALAXY_CONFIG_CONDA_PREFIX=${CONDA_PATHS[$REPO]}
     -e GALAXY_HANDLER_NUMPROCS=0
     -e CONDARC=/cvmfs/${REPO}/dependencies/_condarc
     -v /cvmfs/${REPO}:/cvmfs/${REPO}
@@ -108,7 +113,7 @@ script:
     for tool_yaml in "${TOOL_YAMLS[@]}"; do
         shed-tools install -v -a deadbeef -t "$tool_yaml" --test --test_json "${tool_yaml##*/}"-test.json || {
             # TODO: test here if test failures should be ignored (but we can't separate test failures from install
-            # failures at the moment)
+            # failures at the moment) and also we can't easily get the job stderr
             #[ "$TRAVIS_PULL_REQUEST" == "false" -a "$TRAVIS_BRANCH" == "master" ] || {
             true || {
                 echo "#### TOOL INSTALL/TEST FAILED ####";
@@ -135,13 +140,13 @@ after_success:
   - ssh-add .ci/deploy_key.pem
   - sudo find /upper -perm -u+r -not -perm -o+r -not -type l -print0 | sudo xargs -0 --no-run-if-empty chmod go+r
   - sudo find /upper -perm -u+rx -not -perm -o+rx -not -type l -print0 | sudo xargs -0 --no-run-if-empty chmod go+rx
-  - USER=${REPO_USERS[$REPO]}
-  - ssh ${USER}@cvmfs0-psu0.galaxyproject.org cvmfs_server transaction ${REPO}
+  - REPO_USER=${REPO_USERS[$REPO]}
+  - ssh ${REPO_USER}@cvmfs0-psu0.galaxyproject.org cvmfs_server transaction ${REPO}
   - |
-    rsync -av /upper/ ${USER}@cvmfs0-psu0.galaxyproject.org:/cvmfs/${REPO} || {
+    rsync -av /upper/ ${REPO_USER}@cvmfs0-psu0.galaxyproject.org:/cvmfs/${REPO} || {
         echo "#### RSYNC FAILED, ABORTING TRANSACTION";
-        ssh ${USER}@cvmfs0-psu0.galaxyproject.org cvmfs_server abort -f ${REPO};
+        ssh ${REPO_USER}@cvmfs0-psu0.galaxyproject.org cvmfs_server abort -f ${REPO};
         travis_terminate 1;
     }
-  - echo ssh ${USER}@cvmfs0-psu0.galaxyproject.org "cvmfs_server publish -m 'Automated tool install for commit $TRAVIS_COMMIT' ${REPO}"
-  - ssh ${USER}@cvmfs0-psu0.galaxyproject.org "cvmfs_server abort -f ${REPO}"
+  - echo ssh ${REPO_USER}@cvmfs0-psu0.galaxyproject.org "cvmfs_server publish -m 'Automated tool install for commit $TRAVIS_COMMIT' ${REPO}"
+  - ssh ${REPO_USER}@cvmfs0-psu0.galaxyproject.org "cvmfs_server abort -f ${REPO}"
