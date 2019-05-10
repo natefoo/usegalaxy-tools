@@ -30,7 +30,6 @@ before_install:
   - |
     TOOLSET= ;
     while read op path; do
-        echo "## $op $path"
         if [ -n "$TOOLSET" -a "$TOOLSET" != "${path%%/*}" ]; then
             echo "ERROR: Changes to tools in multiple toolsets found, terminating: ${TOOLSET} != ${path%%/*}"
             travis_terminate 1
@@ -73,7 +72,7 @@ before_install:
   - sudo apt-get install --no-install-recommends -y cvmfs
   - sudo cp .ci/default.local /etc/cvmfs
   - sudo cp .ci/*.pub /etc/cvmfs/keys
-  - sudo mount -t cvmfs "$REPO" "/lower/${REPO}"
+  - sudo mount -t cvmfs "$REPO" "/lower"
   - sudo mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work" "/cvmfs/${REPO}"
 
 install:
