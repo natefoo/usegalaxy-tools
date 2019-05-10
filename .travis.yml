@@ -27,8 +27,10 @@ before_install:
         TRAVIS_COMMIT_RANGE=origin/master...
     fi
   - echo "\$TRAVIS_COMMIT_RANGE is $TRAVIS_COMMIT_RANGE"
+  - echo "Change detection limited to toolset directories:"; for d in "${!TOOLSET_REPOS[@]}"; do echo "${d}/"; done
   - |
     while read op path; do
+        echo "## $op $path"
         if [ -n "$TOOLSET" -a "$TOOLSET" != "${path%%/*}" ]; then
             echo "ERROR: Changes to tools in multiple toolsets found, terminating: ${TOOLSET} != ${path%%/*}"
             travis_terminate 1
