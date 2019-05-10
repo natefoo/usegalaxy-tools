@@ -73,7 +73,7 @@ before_install:
   - sudo cp .ci/default.local /etc/cvmfs
   - sudo cp .ci/*.pub /etc/cvmfs/keys
   - sudo mount -t cvmfs "$REPO" "/lower"
-  - sudo mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work" "/cvmfs/${REPO}"
+  - sudo mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work "/cvmfs/${REPO}"
 
 install:
   - sudo pip install ephemeris planemo
