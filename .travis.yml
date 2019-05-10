@@ -8,16 +8,15 @@ language: minimal
 
 before_install:
   - >-
-    declare -A TOOLSET_REPOS=(
+    declare -g -A TOOLSET_REPOS=(
       [common_toolset]=sandbox.galaxyproject.org
       [test.galaxyproject.org]=test.galaxyproject.org
     )
   - >-
-    declare -A REPO_USERS=(
+    declare -g -A REPO_USERS=(
       [sandbox.galaxyproject.org]=sandbox
       [test.galaxyproject.org]=g2test
     )
-  - TOOLSET=
   - echo 'Detecting changes to tool files...'
   - git diff --quiet "$TRAVIS_COMMIT_RANGE" --; GIT_DIFF_EXIT_CODE=$?
   - |
@@ -29,6 +28,7 @@ before_install:
   - echo "\$TRAVIS_COMMIT_RANGE is $TRAVIS_COMMIT_RANGE"
   - echo "Change detection limited to toolset directories:"; for d in "${!TOOLSET_REPOS[@]}"; do echo "${d}/"; done
   - |
+    TOOLSET= ;
     while read op path; do
         echo "## $op $path"
         if [ -n "$TOOLSET" -a "$TOOLSET" != "${path%%/*}" ]; then
