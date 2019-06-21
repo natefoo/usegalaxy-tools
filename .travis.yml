@@ -98,6 +98,7 @@ install:
     }
 
 script:
+  - echo "GALAXY LOG:" ; docker exec galaxy cat /home/galaxy/logs/uwsgi.log ; echo ''
   - echo "TOOLS:" ; curl http://localhost:8080/api/tools ; echo ''
   - |
     for tool_yaml in "${TOOL_YAMLS[@]}"; do
