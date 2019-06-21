@@ -67,7 +67,6 @@ before_install:
   - sudo cp .ci/*.pub /etc/cvmfs/keys
   - sudo mount -t cvmfs "$REPO" "/lower"
   - sudo mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work "/cvmfs/${REPO}"
-  #- cat /cvmfs/${REPO}/config/shed_tool_conf.xml
 
 install:
   - sudo pip install git+https://github.com/natefoo/ephemeris.git@spinner planemo
@@ -98,8 +97,6 @@ install:
     }
 
 script:
-  #- echo "GALAXY LOG:" ; docker exec galaxy cat /home/galaxy/logs/uwsgi.log ; echo ''
-  - echo "TOOLS:" ; curl http://localhost:8080/api/tools ; echo ''
   - |
     for tool_yaml in "${TOOL_YAMLS[@]}"; do
         shed-tools install -v -a deadbeef -t "$tool_yaml" || {
