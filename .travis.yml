@@ -42,7 +42,7 @@ before_install:
                 ;;
         esac
     done < <(git diff --color=never --name-status "$TRAVIS_COMMIT_RANGE" -- $(for d in "${!TOOLSET_REPOS[@]}"; do echo "${d}/"; done))
-  - set | grep '^TOOL'
+  - declare -p TOOLSET TOOL_YAMLS
   - |
     if [ ${#TOOL_YAMLS[@]} -eq 0 ]; then
         echo 'No tool changes, terminating'
