@@ -51,6 +51,7 @@ tools:
   owner: pjbriggs
   revisions:
   - dfa082f84068
+  - 51b771646466
   tool_panel_section_label: 'NGS: QC and manipulation'
 - name: fastqc
   owner: devteam
