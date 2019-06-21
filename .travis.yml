@@ -97,6 +97,7 @@ install:
     }
 
 script:
+  - echo "TOOLS:" ; curl http://localhost:8080/api/tools
   - |
     for tool_yaml in "${TOOL_YAMLS[@]}"; do
         shed-tools install -v -a deadbeef -t "$tool_yaml" || {
