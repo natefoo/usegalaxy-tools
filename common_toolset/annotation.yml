@@ -1,0 +1,18 @@
+tool_panel_section_label: Annotation
+tools:
+- name: gubbins
+  owner: iuc
+- name: prokka
+  owner: crs4
+- name: abricate
+  owner: iuc
+- name: lcmsmatching
+  owner: prog
+- name: busco
+  owner: iuc
+- name: fasta_stats
+  owner: simon-gladman
+- name: roary
+  owner: iuc
+- name: mlst
+  owner: iuc
