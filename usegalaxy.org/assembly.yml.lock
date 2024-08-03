@@ -12,6 +12,7 @@ tools:
   - 8f9f06995f98
   - 9e3e80cc4ad4
   - d10bdad2fd17
+  - e022dff952df
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
 - name: quast
@@ -227,6 +228,7 @@ tools:
   revisions:
   - 045c7c3d8e59
   - 0ee0c3089254
+  - 284a1cb82b61
   - 366a11d316a7
   - 3f7be05a1597
   - 5bec28269d95
@@ -275,6 +277,7 @@ tools:
   revisions:
   - 01210c4e9144
   - 3169a38c2656
+  - 460fad600dce
   - b2f674562a18
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
@@ -298,6 +301,7 @@ tools:
 - name: salsa
   owner: iuc
   revisions:
+  - 58a870ef434c
   - 9a22227bb6d0
   - ba7b0f11e470
   - f77f7a7f3b83
@@ -350,6 +354,7 @@ tools:
   - 425e63adcc5d
   - d87433f2a54d
   - fc925f53cae7
+  - ff4031bfaa22
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
 - name: smudgeplot
