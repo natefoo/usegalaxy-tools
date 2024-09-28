@@ -55,6 +55,7 @@ tools:
   - 0d243f458b53
   - 1e62c28ba91d
   - 2a5b8b9936bf
+  - 2babe6d5c561
   - 4048d82f0c88
   - 41030a6c03b7
   - 46ae58b1d792
@@ -180,6 +181,7 @@ tools:
   owner: iuc
   revisions:
   - 3f6e5c701945
+  - 5f8efb080f49
   - dddd7ef63469
   tool_panel_section_id: annotation
   tool_panel_section_label: Annotation
@@ -194,6 +196,7 @@ tools:
 - name: ncbi_egapx
   owner: richard-burhans
   revisions:
+  - 3a8a37414e56
   - 7c72d5c7e449
   tool_panel_section_id: annotation
   tool_panel_section_label: Annotation
