@@ -13,6 +13,7 @@ tools:
 - name: bigwig_outlier_bed
   owner: iuc
   revisions:
+  - 2488bcddaf14
   - 61946b8bd43b
   tool_panel_section_id: filter_and_sort
   tool_panel_section_label: Filter and Sort
