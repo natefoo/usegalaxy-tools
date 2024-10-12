@@ -325,6 +325,7 @@ tools:
 - name: bio_hansel
   owner: iuc
   revisions:
+  - 1b88c1cf803d
   - 4deefd708943
   - e3698ac146d7
   tool_panel_section_id: metagenomic_analysis
