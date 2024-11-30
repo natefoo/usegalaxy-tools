@@ -6,5 +6,6 @@ tools:
   owner: goeckslab
   revisions:
   - 7b33a7a006c7
+  - eaa8cead8adb
   tool_panel_section_id: interactive_tools
   tool_panel_section_label: Interactive Tools
