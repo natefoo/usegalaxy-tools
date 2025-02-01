@@ -207,6 +207,7 @@ tools:
   - 5515f982baf6
   - 5b24ea81a6f8
   - 5c322fda4344
+  - 8ada50a892fa
   - c49e6f083027
   tool_panel_section_id: annotation
   tool_panel_section_label: Annotation
@@ -520,6 +521,7 @@ tools:
 - name: compleasm
   owner: iuc
   revisions:
+  - 7109a27a11db
   - 8f20a5b9b282
   - cfec9601b25d
   tool_panel_section_id: annotation
