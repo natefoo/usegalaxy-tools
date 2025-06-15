@@ -21,6 +21,7 @@ tools:
   - 5eb7e84243f2
   - 64172f1c1202
   - 660cffd8d92a
+  - 80766b36005d
   - 8c0175e03cee
   - 944ae523bacb
   - aa784cb3810d
@@ -46,6 +47,7 @@ tools:
   revisions:
   - 10678d49d39e
   - 1d8fe9bc4cb0
+  - 25c59c0ceb55
   - 65b93b623c77
   - a626e8c0e1ba
   - c59d48774d03
@@ -269,6 +271,7 @@ tools:
   revisions:
   - 516b97a23d7e
   - 859422bcb689
+  - e773f1eb16cf
   tool_panel_section_id: fasta_fastq
   tool_panel_section_label: FASTA/FASTQ
 - name: fasta_filter_by_length
