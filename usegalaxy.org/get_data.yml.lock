@@ -78,6 +78,7 @@ tools:
   owner: galaxyp
   revisions:
   - 21a560af5913
+  - 2e297d531259
   - 34758ab8aaa4
   - 7863f1abcdda
   - 9aaa46d45472
@@ -113,6 +114,7 @@ tools:
 - name: fastq_dl
   owner: iuc
   revisions:
+  - 3f1ee30e39e9
   - 5e7401777990
   tool_panel_section_id: get_data
   tool_panel_section_label: Get Data
