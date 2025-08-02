@@ -796,6 +796,7 @@ tools:
   revisions:
   - 99ff9221182c
   - b5a7583b8db0
+  - bcb50c148f4b
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
 - name: concoct_coverage_table
@@ -831,6 +832,7 @@ tools:
 - name: binette
   owner: iuc
   revisions:
+  - 15dba9749732
   - 1d97ddbc3464
   - 7834132949bc
   tool_panel_section_id: metagenomic_analysis
