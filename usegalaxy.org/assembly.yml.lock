@@ -352,6 +352,7 @@ tools:
   owner: iuc
   revisions:
   - 02831bf9e95f
+  - 0346286a3b0a
   - 2b16ba799da9
   - 511e5e3cd55e
   - 79b48f02db49
@@ -368,6 +369,7 @@ tools:
   - 44c66e8d21e6
   - 6c571966cfb9
   - 7c9417381ad5
+  - 9ec9c22767c8
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
 - name: pretext_graph
@@ -375,6 +377,7 @@ tools:
   revisions:
   - 408ece2e4647
   - 75b4a2298714
+  - 936a1edffce8
   - eca7d3a0c5f2
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
@@ -432,6 +435,7 @@ tools:
 - name: rnaquast
   owner: iuc
   revisions:
+  - 3967889cda03
   - 8e66f695d859
   - f73ab5187eed
   tool_panel_section_id: assembly
@@ -443,6 +447,7 @@ tools:
   - 5412142130ad
   - 55a53b5e308d
   - 56bb29747b4d
+  - 608ea80cccba
   - c162f3c43442
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
@@ -451,6 +456,7 @@ tools:
   revisions:
   - 44cb74c154bc
   - 678f10bb377e
+  - 729197476fc1
   - 963d674e438d
   - b0a1f128fa15
   - d3a7b17714c1
@@ -463,6 +469,7 @@ tools:
   - 5fd78abb0d81
   - 8cffb8fc34f0
   - 8ed44487c834
+  - c1c1d894dd3a
   - fdd073110081
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
@@ -470,6 +477,7 @@ tools:
   owner: iuc
   revisions:
   - 060f0fed864e
+  - 0fb51c6f2e37
   - 39df08e91cdf
   - 53d73d58e105
   - a7035be049e4
@@ -484,6 +492,7 @@ tools:
   - 81fc1418fbfb
   - ade829d2ae3a
   - c20a07c9237b
+  - cfeb5205eacc
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
 - name: refseq_masher
