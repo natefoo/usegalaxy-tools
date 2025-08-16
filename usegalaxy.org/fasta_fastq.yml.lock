@@ -49,6 +49,7 @@ tools:
   - 1d8fe9bc4cb0
   - 25c59c0ceb55
   - 3432a0e49b86
+  - 350c736075eb
   - 480ddbd12a03
   - 65b93b623c77
   - a626e8c0e1ba
@@ -349,6 +350,7 @@ tools:
 - name: ucsc_fasplit
   owner: iuc
   revisions:
+  - 1add611a6018
   - 71f649c23021
   - bf04bd405d5b
   - d3f58a0dc09d
