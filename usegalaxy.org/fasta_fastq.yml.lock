@@ -46,6 +46,7 @@ tools:
   owner: iuc
   revisions:
   - 10678d49d39e
+  - 1c183b0a6cfd
   - 1d8fe9bc4cb0
   - 25c59c0ceb55
   - 3432a0e49b86
@@ -324,6 +325,7 @@ tools:
 - name: filtlong
   owner: iuc
   revisions:
+  - 1dfbdcbf604b
   - 1f296803dfa3
   - 41b2ad601cf0
   - 8880fb74ef56
@@ -349,6 +351,7 @@ tools:
 - name: ucsc_fasplit
   owner: iuc
   revisions:
+  - 1add611a6018
   - 71f649c23021
   - bf04bd405d5b
   - d3f58a0dc09d
