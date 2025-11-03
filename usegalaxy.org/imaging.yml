@@ -30,3 +30,7 @@ tools:
   owner: goeckslab
 - name: scimap_plotting
   owner: goeckslab
+- name: imagemagick_image_montage
+  owner: bgruening
+- name: imagemagick_image_montage
+  owner: bgruening

@@ -105,3 +105,16 @@ tools:
   - ef73596d678a
   tool_panel_section_id: imaging
   tool_panel_section_label: Imaging
+- name: imagemagick_image_montage
+  owner: bgruening
+  revisions:
+  - 65703c06c1f6
+  tool_panel_section_id: imaging
+  tool_panel_section_label: Imaging
+- name: imagemagick_image_montage
+  owner: bgruening
+  revisions:
+  - 506a90ab5581
+  - 65703c06c1f6
+  tool_panel_section_id: imaging
+  tool_panel_section_label: Imaging
