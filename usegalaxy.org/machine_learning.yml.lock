@@ -131,6 +131,7 @@ tools:
   revisions:
   - 03533fa14e77
   - 0dc3027df8f4
+  - 1252578525d1
   - 305c1229ac99
   - 3814a92c1416
   - 4a5266c96889
@@ -195,6 +196,7 @@ tools:
   - 61e76fb65daf
   - 65f18ab91132
   - 805194c3cdfb
+  - 845dfafac355
   - 887e0aaa482e
   - 9dc28a4b6ca8
   - bfc7bdfcb423
@@ -263,6 +265,7 @@ tools:
   - 97dce66fe158
   - 9c3e1d3235c8
   - b1eda492f063
+  - bc0117538945
   tool_panel_section_id: machine_learning
   tool_panel_section_label: Machine Learning
 - name: sklearn_pairwise_metrics
@@ -453,6 +456,7 @@ tools:
   - ce2fd1edbc6e
   - e10ffa9e0b90
   - e8639f65c883
+  - fc0f9ba14aaa
   tool_panel_section_id: machine_learning
   tool_panel_section_label: Machine Learning
 - name: sklearn_fitted_model_eval
@@ -538,6 +542,7 @@ tools:
 - name: scipy_sparse
   owner: bgruening
   revisions:
+  - 233aab4c1be8
   - 42b513bed40b
   - 4efac966af2a
   - 6d1a9fae57eb
