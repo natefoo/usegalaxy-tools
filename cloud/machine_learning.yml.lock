@@ -29,6 +29,7 @@ tools:
   revisions:
   - 060ca94ac049
   - 1a53edc4b438
+  - cab63604ca1d
   tool_panel_section_id: machine_learning
   tool_panel_section_label: Machine Learning
 - name: plotly_regression_performance_plots
