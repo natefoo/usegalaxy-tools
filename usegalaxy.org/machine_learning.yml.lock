@@ -93,11 +93,13 @@ tools:
   - 9991c4ddde14
   - b237f27a8afc
   - ce00f1cccb03
+  - eae46976fbb8
   tool_panel_section_id: machine_learning
   tool_panel_section_label: Machine Learning
 - name: keras_model_config
   owner: bgruening
   revisions:
+  - 00b2ee48b412
   - 0c933465d70e
   - 2a853a2d2e72
   - 2b8d85927742
@@ -488,6 +490,7 @@ tools:
   revisions:
   - 05143043ca13
   - 1588f9076e32
+  - 21730620a849
   - 222c02df5d55
   - 4a229a7ad638
   - 6fabdcde0214
@@ -508,6 +511,7 @@ tools:
   - b7d104ede67e
   - c48ffc96fe79
   - d562708bb095
+  - f04f39a6825d
   tool_panel_section_id: machine_learning
   tool_panel_section_label: Machine Learning
 - name: sklearn_pca

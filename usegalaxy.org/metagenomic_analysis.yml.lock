@@ -20,6 +20,7 @@ tools:
   owner: bgruening
   revisions:
   - 0cdcf7e99b62
+  - 1196fc76fdc2
   - 1e3323a44643
   - 20d92dc4c6cb
   - 54f751e413f4
@@ -221,6 +222,7 @@ tools:
   revisions:
   - 1728e5ee871a
   - 224abe7c80ed
+  - 2875d977c533
   - 32c9ea835770
   - 498d57610fcd
   - 555ccac8a4c5
@@ -270,6 +272,7 @@ tools:
   - 23fc35093b11
   - 34e55239e68b
   - 777f9846c56d
+  - 81fc1ff02788
   - a9f4a217dcd6
   - addaf9d22850
   - ca73bbac615a
@@ -336,6 +339,7 @@ tools:
   - 69900ffd3b8e
   - 84743da21318
   - b1e55c248f17
+  - c920e1400f98
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
 - name: dada2_seqcounts
@@ -348,6 +352,7 @@ tools:
   - 4cc834cce4fb
   - 7d28da5e9e27
   - 9058d8943303
+  - 9180d536e20d
   - a7817705348e
   - d943081510da
   - f74c56549143
@@ -958,6 +963,7 @@ tools:
   owner: ufz
   revisions:
   - 26f5822743aa
+  - b405bd1eff93
   - edb671f0661e
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
