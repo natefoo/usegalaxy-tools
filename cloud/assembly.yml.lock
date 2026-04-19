@@ -37,6 +37,7 @@ tools:
   owner: bgruening
   revisions:
   - 0fe699ced54f
+  - 10dc0f5a82e2
   - 3ef480892a9f
   - 59150c883ed5
   - 764f2516d837
@@ -66,6 +67,7 @@ tools:
 - name: mitohifi
   owner: bgruening
   revisions:
+  - 3fc33af5d9e2
   - bfab6f5b449d
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
@@ -132,6 +134,7 @@ tools:
   - 1c2ebb81a211
   - 36ce83a739f2
   - 408ece2e4647
+  - 8e422c873d02
   - 936a1edffce8
   tool_panel_section_id: assembly
   tool_panel_section_label: Assembly
