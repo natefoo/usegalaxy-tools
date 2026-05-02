@@ -613,6 +613,7 @@ tools:
 - name: metabat2
   owner: iuc
   revisions:
+  - a040f2dc705c
   - eb50e7eca3dc
   - f375b4f6ef57
   tool_panel_section_id: metagenomic_analysis
@@ -854,6 +855,7 @@ tools:
 - name: ampvis2_load
   owner: iuc
   revisions:
+  - 27ac516ba719
   - 3481feabc54e
   - 5029fd9d572e
   - 738474880da8
