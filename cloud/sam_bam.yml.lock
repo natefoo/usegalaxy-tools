@@ -100,6 +100,7 @@ tools:
   - 40fa6c240105
   - 56fb540810ce
   - 83b8e36e9cbe
+  - a50321bc1a90
   - b5527cc104ab
   - ef678e1f70a2
   tool_panel_section_id: sam_bam
@@ -253,6 +254,7 @@ tools:
   - a4a10c7924d1
   - adc4ed59d82b
   - b8beef827165
+  - c4325d32b1a2
   tool_panel_section_id: sam_bam
   tool_panel_section_label: SAM/BAM
 - name: samtools_rmdup
