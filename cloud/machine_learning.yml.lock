@@ -7,6 +7,7 @@ tools:
   owner: bgruening
   revisions:
   - 1ed23c988ff6
+  - 43a859a0fab5
   - 4c4ec859c31a
   - 840f29aad145
   - bc0117538945
@@ -31,6 +32,7 @@ tools:
 - name: sklearn_ensemble
   owner: bgruening
   revisions:
+  - 00f01f713c3c
   - 060ca94ac049
   - 0b98933cf0f7
   - 1a53edc4b438
@@ -53,6 +55,7 @@ tools:
   - e7dd78077b72
   - e82fd7fe796b
   - edd515746388
+  - efe3a2d3a31d
   tool_panel_section_id: machine_learning
   tool_panel_section_label: Machine Learning
 - name: image_learner
