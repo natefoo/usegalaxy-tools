@@ -90,6 +90,7 @@ tools:
 - name: metaspades
   owner: nml
   revisions:
+  - 04d81e5f25e9
   - 05c394313b1c
   - 697c9156dafe
   - 9638ba70882c
@@ -672,6 +673,7 @@ tools:
 - name: fastga
   owner: iuc
   revisions:
+  - 27d750de596d
   - 27f0ed5cbd33
   - 8f821f9b8567
   tool_panel_section_id: assembly
