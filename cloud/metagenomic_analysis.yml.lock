@@ -48,6 +48,7 @@ tools:
 - name: concoct_coverage_table
   owner: iuc
   revisions:
+  - 6a9c82cc3448
   - fd31cd168efc
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
@@ -62,6 +63,7 @@ tools:
 - name: concoct
   owner: iuc
   revisions:
+  - 396cce609c04
   - eae7ee167917
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
@@ -90,6 +92,7 @@ tools:
   owner: iuc
   revisions:
   - 8b1b09fcd8b7
+  - d87b60b2ed78
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
 - name: fasta_to_contig2bin
@@ -177,6 +180,7 @@ tools:
   owner: iuc
   revisions:
   - 4e469b758915
+  - 51971db051ba
   - a204f3983d22
   - e7c2674e01fe
   tool_panel_section_id: metagenomic_analysis
@@ -192,6 +196,7 @@ tools:
 - name: dada2_learnerrors
   owner: iuc
   revisions:
+  - 4bba91a89457
   - 68129ce1c59b
   - a14a18a47c36
   - dd6572434618
@@ -210,6 +215,7 @@ tools:
   revisions:
   - 273b8a00c8a2
   - 646c58820267
+  - a35c40af067f
   - c920e1400f98
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
@@ -224,6 +230,7 @@ tools:
 - name: dada2_removebimeradenovo
   owner: iuc
   revisions:
+  - 0a13d449d1bf
   - 4efeb75704c8
   - 6bd7c48ff6ed
   - efe26de231ec
@@ -233,6 +240,7 @@ tools:
   owner: iuc
   revisions:
   - 213a3fda0b91
+  - 256e7a119a95
   - 390bc2645138
   - 9180d536e20d
   tool_panel_section_id: metagenomic_analysis
