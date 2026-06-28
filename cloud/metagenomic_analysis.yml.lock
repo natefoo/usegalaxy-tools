@@ -226,6 +226,7 @@ tools:
   revisions:
   - 0b1ce4edabc7
   - 88677f452aea
+  - aab8af79110e
   - ebd632e95aae
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
