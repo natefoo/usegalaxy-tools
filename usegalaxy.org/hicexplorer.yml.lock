@@ -159,6 +159,7 @@ tools:
   - 30d7390bc918
   - 62b720dceb56
   - 937b7b9832d0
+  - c5ce0cbf73dc
   - ea19190ce5e0
   tool_panel_section_id: hicexplorer
   tool_panel_section_label: HiCExplorer
@@ -168,6 +169,7 @@ tools:
   - 0f5786ffa10d
   - 2786a931cad2
   - 2b4d6a8dab36
+  - 5faa9d3839d0
   - cd40ca76865a
   tool_panel_section_id: hicexplorer
   tool_panel_section_label: HiCExplorer
@@ -175,6 +177,7 @@ tools:
   owner: bgruening
   revisions:
   - 0410b6aada45
+  - 18bf75bf5d67
   - 4375e25de06a
   - bf9379529c3e
   - ffc33339cd3e
@@ -206,6 +209,7 @@ tools:
   - 11de0d28ab30
   - 478aacfbaa37
   - 755df866ad0c
+  - 7b9fa42ca59c
   - ec4b948dc6f0
   tool_panel_section_id: hicexplorer
   tool_panel_section_label: HiCExplorer
@@ -312,6 +316,7 @@ tools:
   - 025a128652dc
   - 12d51d7be66f
   - b63363075c2e
+  - eb3a1b9a1c3c
   - f741330d4a71
   tool_panel_section_id: hicexplorer
   tool_panel_section_label: HiCExplorer
