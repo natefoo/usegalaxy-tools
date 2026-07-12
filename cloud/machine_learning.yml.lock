@@ -58,6 +58,7 @@ tools:
   - e7dd78077b72
   - e82fd7fe796b
   - edd515746388
+  - efe3a2d3a31d
   tool_panel_section_id: machine_learning
   tool_panel_section_label: Machine Learning
 - name: image_learner
@@ -311,6 +312,7 @@ tools:
   owner: bgruening
   revisions:
   - 7a1bae3c974a
+  - f4fa010a53dd
   tool_panel_section_id: machine_learning
   tool_panel_section_label: Machine Learning
 - name: flexynesis_plot
