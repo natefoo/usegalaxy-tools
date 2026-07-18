@@ -208,6 +208,7 @@ tools:
   - 3f6e5c701945
   - 5f8efb080f49
   - 8c8299e553ec
+  - a3d1bf938fa8
   - dddd7ef63469
   tool_panel_section_id: annotation
   tool_panel_section_label: Annotation
@@ -230,6 +231,7 @@ tools:
   - b095c69eab5b
   - b0f07e3d6f07
   - d129c3d0e920
+  - fea9e5d3fb28
   tool_panel_section_id: annotation
   tool_panel_section_label: Annotation
 - name: optitype
@@ -556,6 +558,7 @@ tools:
 - name: compleasm
   owner: iuc
   revisions:
+  - 0b833dc20f00
   - 7109a27a11db
   - 8f20a5b9b282
   - cfec9601b25d
