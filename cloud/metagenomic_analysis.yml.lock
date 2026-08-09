@@ -9,6 +9,7 @@ tools:
   - 24313e0ff049
   - 304ac5b49dea
   - 66acaec9f386
+  - fd8ed3767ebb
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
 - name: kraken2
@@ -29,6 +30,7 @@ tools:
 - name: recentrifuge
   owner: iuc
   revisions:
+  - 2db2dc0eca8c
   - 613ee22af97c
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
@@ -115,6 +117,7 @@ tools:
 - name: drep_dereplicate
   owner: iuc
   revisions:
+  - 8165eab19456
   - f54e7b3da33c
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
@@ -186,6 +189,7 @@ tools:
   - 4e469b758915
   - 51971db051ba
   - a204f3983d22
+  - d000854331fe
   - e7c2674e01fe
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
@@ -231,6 +235,7 @@ tools:
   - 0b1ce4edabc7
   - 88677f452aea
   - aab8af79110e
+  - d49e0de76bf5
   - ebd632e95aae
   tool_panel_section_id: metagenomic_analysis
   tool_panel_section_label: Metagenomic Analysis
