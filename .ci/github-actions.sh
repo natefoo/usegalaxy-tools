@@ -1,8 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Tool installation/publishing driver for GitHub Actions, run on a self-hosted runner provisioned with CVMFS and
+# fuse-overlayfs (see docs/self-hosted-runner.md).
+#
+# The workflows in .github/workflows/ set:
+#   PUBLISH       'false' for the PR test install, 'true' for the post-merge deploy
+#   COMMIT_RANGE  the range to look for changed .lock files in
+
 # Set this variable to 'true' to publish on successful installation
 : ${PUBLISH:=false}
+
+# Range passed to `git diff` to detect changed tool files. The default is for running by hand on a PR branch; the
+# workflows pass an explicit range, since after a merge there is nothing left to diff against origin/master.
+: ${COMMIT_RANGE:=origin/master...}
+
+# Scratch space for the per-run overlayfs and CVMFS mounts. Must NOT be $GITHUB_WORKSPACE: that is the git checkout,
+# and creating the overlay dirs inside it would pollute the working tree that detect_changes diffs.
+: ${SCRATCH_ROOT:=/data/actions-runner/scratch}
+
+# Parent dir of the persistent CVMFS cache, kept warm between runs
+: ${CVMFS_CACHE_ROOT:=/data/actions-runner/cvmfs-cache}
 
 LOCAL_PORT=8080
 REMOTE_PORT=8080
@@ -20,19 +38,23 @@ GALAXY_DOCKER_IMAGE_PULL=true
 GALAXY_TEMPLATE_DB_URL=
 GALAXY_TEMPLATE_DB='galaxy.sqlite'
 
-# Need to run dev until 0.10.4
-#EPHEMERIS="git+https://github.com/galaxyproject/ephemeris.git"
+# Set by Actions, so the defaults here are for development
+GIT_COMMIT="${GITHUB_SHA:-$(git rev-parse HEAD)}"
+RUN_ID="${GITHUB_RUN_ID:-$$}"
 
-# Should be set by Jenkins, so the default here is for development
-: ${GIT_COMMIT:=$(git rev-parse HEAD)}
+# Per-run scratch dir and the log dir within it that the workflow uploads as an artifact
+RUN_DIR="${SCRATCH_ROOT}/${RUN_ID}"
+CI_LOG_DIR="${RUN_DIR}/logs"
+mkdir -p "$CI_LOG_DIR"
+# Export the log dir so the workflow's upload-artifact step can find it without knowing $SCRATCH_ROOT
+if [ -n "${GITHUB_ENV:-}" ]; then
+    echo "CI_LOG_DIR=${CI_LOG_DIR}" >> "$GITHUB_ENV"
+fi
 
-# Set to true to perform everything on the Jenkins worker and copy results to the Stratum 0 for publish, instead of
+# Set to true to perform everything on the runner and copy results to the Stratum 0 for publish, instead of
 # performing everything directly on the Stratum 0. Requires preinstallation/preconfiguration of CVMFS and for
-# fuse-overlayfs to be installed on Jenkins workers.
+# fuse-overlayfs to be installed on the runner.
 USE_LOCAL_OVERLAYFS=true
-
-# Parent dir of the persistent CVMFS cache
-JENKINS_ROOT=/data/jenkins
 
 #
 # Development/debug options
@@ -83,6 +105,13 @@ CVMFS_TRANSACTION_UP=false
 GALAXY_CONTAINER_UP=false
 LOCAL_CVMFS_MOUNTED=false
 LOCAL_OVERLAYFS_MOUNTED=false
+
+# Set once the CVMFS transaction has been published, so that cleanup failures after that point can be reported as
+# non-fatal rather than failing a run whose deploy actually succeeded (see unmount_cvmfs_lower)
+PUBLISH_COMPLETE=false
+# Cleared if the CVMFS lower mount could not be unmounted, in which case the run dir is left for the runner's
+# job-started hook to reap once the kernel has released it
+RUN_DIR_REMOVABLE=true
 
 
 function trap_handler() {
@@ -139,6 +168,46 @@ function log_exit() {
 }
 
 
+# Append to the Actions run summary, which is where tool installers are expected to review what a run did. No-op when
+# running by hand outside Actions.
+function summary() {
+    [ -n "${GITHUB_STEP_SUMMARY:-}" ] || return 0
+    echo "$@" >> "$GITHUB_STEP_SUMMARY"
+}
+
+
+# As exec_on, but without the `set -x` tracing, so the output can be captured cleanly
+function exec_on_quiet() {
+    if $USE_LOCAL_OVERLAYFS && ! $SSH_MASTER_UP; then
+        eval "$@"
+    else
+        ssh -S "$SSH_MASTER_SOCKET" -l "$REPO_USER" "$REPO_STRATUM0" -- "$@"
+    fi
+}
+
+
+# Run a command, echoing its output to both the log and the run summary inside a <details> block. These are
+# the outputs tool installers are told to review, so they need to be readable without digging through the raw log.
+function summary_exec() {
+    local title="$1"; shift
+    local out
+    out="$(exec_on_quiet "$@" 2>&1)" || true
+    log_debug "${title}"
+    echo "$out"
+    [ -n "${GITHUB_STEP_SUMMARY:-}" ] || return 0
+    {
+        echo "<details open><summary>${title}</summary>"
+        echo
+        echo '```'
+        echo "$out"
+        echo '```'
+        echo
+        echo '</details>'
+        echo
+    } >> "$GITHUB_STEP_SUMMARY"
+}
+
+
 function exec_on() {
     if $USE_LOCAL_OVERLAYFS && ! $SSH_MASTER_UP; then
         log_exec "$@"
@@ -158,18 +227,6 @@ function copy_to() {
 }
 
 
-function check_bot_command() {
-    log 'Checking for Github PR Bot commands'
-    log_debug "Value of \$ghprbCommentBody is: ${ghprbCommentBody:-UNSET}"
-    case "${ghprbCommentBody:-UNSET}" in
-        "@galaxybot deploy"*)
-            PUBLISH=true
-            ;;
-    esac
-    $PUBLISH && log_debug "Changes will be published" || log_debug "Test installation, changes will be discarded"
-}
-
-
 function load_repo_configs() {
     log 'Loading repository configs'
     . ./.ci/repos.conf
@@ -178,9 +235,8 @@ function load_repo_configs() {
 
 function detect_changes() {
     log 'Detecting changes to tool files...'
-    log_exec git remote set-branches --add origin master
-    log_exec git fetch origin
-    COMMIT_RANGE=origin/master...
+    $PUBLISH && log_debug "Changes will be published" || log_debug "Test installation, changes will be discarded"
+    log_debug "Commit range: ${COMMIT_RANGE}"
 
     log 'Change detection limited to toolset directories:'
     for d in "${!TOOLSET_REPOS[@]}"; do
@@ -212,12 +268,29 @@ function detect_changes() {
     log 'Change detection results:'
     declare -p TOOLSET TOOL_YAMLS
 
-    [ ${#TOOL_YAMLS[@]} -gt 0 ] || log_exit 'No tool changes, terminating'
+    if [ ${#TOOL_YAMLS[@]} -eq 0 ]; then
+        summary '### No tool changes detected'
+        summary
+        summary "Nothing to install for commit range \`${COMMIT_RANGE}\`."
+        log_exit 'No tool changes, terminating'
+    fi
 
     log "Getting repo for toolset: ${TOOLSET}"
     # set -u will force exit here if $TOOLSET is invalid
     REPO="${TOOLSET_REPOS[$TOOLSET]}"
     declare -p REPO
+
+    summary "### Toolset \`${TOOLSET}\` → CVMFS repository \`${REPO}\`"
+    summary
+    summary "$($PUBLISH && echo 'Changes **will be published**.' || echo 'Test installation, changes will be discarded.')"
+    summary
+    summary 'Changed tool files:'
+    summary
+    local tool_yaml
+    for tool_yaml in "${TOOL_YAMLS[@]}"; do
+        summary "- \`${tool_yaml}\`"
+    done
+    summary
 }
 
 
@@ -233,14 +306,16 @@ function set_repo_vars() {
     SHED_TOOL_DIR="${SHED_TOOL_DIRS[$REPO]}"
     SHED_TOOL_DATA_TABLE_CONFIG="${SHED_TOOL_DATA_TABLE_CONFIGS[$REPO]}"
     SHED_DATA_MANAGER_CONFIG="${SHED_DATA_MANAGER_CONFIGS[$REPO]}"
-    CONTAINER_NAME="usegalaxy-tools-${REPO_USER}-${BUILD_NUMBER}"
+    CONTAINER_NAME="usegalaxy-tools-${REPO_USER}-${RUN_ID}"
     if $USE_LOCAL_OVERLAYFS; then
-        OVERLAYFS_LOWER="${WORKSPACE}/${BUILD_NUMBER}/lower"
-        OVERLAYFS_UPPER="${WORKSPACE}/${BUILD_NUMBER}/upper"
-        OVERLAYFS_WORK="${WORKSPACE}/${BUILD_NUMBER}/work"
-        OVERLAYFS_MOUNT="${WORKSPACE}/${BUILD_NUMBER}/mount"
-        CVMFS_CACHE="${JENKINS_ROOT}/cvmfs-cache"
-        CVMFS_SOCKETS="${WORKSPACE}/${BUILD_NUMBER}/cvmfs-sockets"
+        OVERLAYFS_LOWER="${RUN_DIR}/lower"
+        OVERLAYFS_UPPER="${RUN_DIR}/upper"
+        OVERLAYFS_WORK="${RUN_DIR}/work"
+        OVERLAYFS_MOUNT="${RUN_DIR}/mount"
+        CVMFS_CACHE="${CVMFS_CACHE_ROOT}"
+        CVMFS_SOCKETS="${RUN_DIR}/cvmfs-sockets"
+        # .ci/cvmfs-fuse.conf interpolates these
+        export CVMFS_CACHE CVMFS_SOCKETS RUN_DIR
     else
         OVERLAYFS_UPPER="/var/spool/cvmfs/${REPO}/scratch/current"
         OVERLAYFS_LOWER="/var/spool/cvmfs/${REPO}/rdonly"
@@ -264,13 +339,10 @@ function set_repo_vars() {
 function setup_ephemeris() {
     log "Setting up Ephemeris"
     log_exec python3 -m venv ephemeris
-    # FIXME: temporary until Jenkins nodes are updated, new versions of venv properly default unset vars in activate
-    set +u
     . ./ephemeris/bin/activate
-    set -u
     log_exec pip install --upgrade pip wheel
-    log_exec pip install --index-url https://wheels.galaxyproject.org/simple/ \
-        --extra-index-url https://pypi.org/simple/ "${EPHEMERIS:=ephemeris}" #"${PLANEMO:=planemo}"
+    # requirements.txt pins the bioblend revision with bounded HTTP 429 retries alongside ephemeris
+    log_exec pip install -r requirements.txt
 }
 
 
@@ -301,8 +373,8 @@ function verify_cvmfs_revision() {
 
 function mount_overlay() {
     log "Mounting OverlayFS/CVMFS"
-    log_debug "\$JOB_NAME: ${JOB_NAME}, \$WORKSPACE: ${WORKSPACE}, \$BUILD_NUMBER: ${BUILD_NUMBER}"
-    log_exec mkdir -p "$OVERLAYFS_LOWER" "$OVERLAYFS_UPPER" "$OVERLAYFS_WORK" "$OVERLAYFS_MOUNT" "$CVMFS_CACHE" "$CVMFS_SOCKETS"
+    log_debug "\$GITHUB_WORKFLOW: ${GITHUB_WORKFLOW:-UNSET}, \$RUN_DIR: ${RUN_DIR}"
+    log_exec mkdir -p "$OVERLAYFS_LOWER" "$OVERLAYFS_UPPER" "$OVERLAYFS_WORK" "$OVERLAYFS_MOUNT" "$CVMFS_CACHE" "$CVMFS_SOCKETS" "$CI_LOG_DIR"
     log_exec cvmfs2 -o config=.ci/cvmfs-fuse.conf,allow_root "$REPO" "$OVERLAYFS_LOWER"
     LOCAL_CVMFS_MOUNTED=true
     verify_cvmfs_revision
@@ -311,9 +383,34 @@ function mount_overlay() {
     log_exec fuse-overlayfs \
         -o "lowerdir=${OVERLAYFS_LOWER},upperdir=${OVERLAYFS_UPPER},workdir=${OVERLAYFS_WORK},allow_root" \
         "$OVERLAYFS_MOUNT"
-    #log_exec sudo --preserve-env=JOB_NAME --preserve-env=WORKSPACE --preserve-env=BUILD_NUMBER \
-    #    /usr/local/sbin/jenkins-mount-overlayfs
     LOCAL_OVERLAYFS_MOUNTED=true
+}
+
+
+# Unmount the CVMFS lower mount, which intermittently fails with EBUSY. By the time this runs the CVMFS transaction
+# has already been published, so a failure here does not mean the deploy failed - historically it produced a red build
+# for a successful deploy, which had to be force merged. Retry, then degrade to a lazy unmount, but never fail.
+function unmount_cvmfs_lower() {
+    local i
+    for i in $(seq 1 5); do
+        fusermount -u "$OVERLAYFS_LOWER" && {
+            LOCAL_CVMFS_MOUNTED=false
+            return 0
+        }
+        log_debug "Unmount of ${OVERLAYFS_LOWER} failed (attempt ${i}/5), probably EBUSY"
+        # What is holding this? Then try to kill it so the next attempt can succeed.
+        log_exec fuser -v -m "$OVERLAYFS_LOWER" || true
+        log_exec fuser -k -m "$OVERLAYFS_LOWER" || true
+        sleep 5
+    done
+
+    log_error "Could not cleanly unmount ${OVERLAYFS_LOWER}, falling back to lazy unmount"
+    fusermount -u -z "$OVERLAYFS_LOWER" \
+        || log_error "Lazy unmount of ${OVERLAYFS_LOWER} also failed, leaving it for the runner job-started hook"
+    # Removing the run dir would fail on the still-referenced mount point, so leave it for the hook to reap
+    RUN_DIR_REMOVABLE=false
+    LOCAL_CVMFS_MOUNTED=false
+    return 0
 }
 
 
@@ -321,17 +418,15 @@ function unmount_overlay() {
     log "Unmounting OverlayFS/CVMFS"
     if $LOCAL_OVERLAYFS_MOUNTED; then
         log_exec fusermount -u "$OVERLAYFS_MOUNT"
-        #log_exec sudo --preserve-env=JOB_NAME --preserve-env=WORKSPACE --preserve-env=BUILD_NUMBER \
-        #    /usr/local/sbin/jenkins-umount-overlayfs
         LOCAL_OVERLAYFS_MOUNTED=false
     fi
-    # DEBUG: what is holding this?
-    log_exec fuser -v "$OVERLAYFS_LOWER" || true
-    # Attempt to kill anything still accessing lower so unmount doesn't fail
-    log_exec fuser -v -k "$OVERLAYFS_LOWER" || true
-    log_exec fusermount -u "$OVERLAYFS_LOWER"
-    log_exec rm -rf "${WORKSPACE}/${BUILD_NUMBER}"
-    LOCAL_CVMFS_MOUNTED=false
+    unmount_cvmfs_lower
+    if $RUN_DIR_REMOVABLE; then
+        # Keep the logs, the workflow uploads them as an artifact
+        log_exec find "$RUN_DIR" -mindepth 1 -maxdepth 1 -not -name logs -exec rm -rf '{}' '+'
+    else
+        log_debug "Leaving ${RUN_DIR} in place, it still contains a mount"
+    fi
 }
 
 
@@ -340,7 +435,7 @@ function start_ssh_control() {
     SSH_MASTER_SOCKET="${SSH_MASTER_SOCKET_DIR}/ssh-tunnel-${REPO_USER}-${REPO_STRATUM0}.sock"
     log_exec mkdir -p "$SSH_MASTER_SOCKET_DIR"
     $USE_LOCAL_OVERLAYFS || port_forward_flag="-L 127.0.0.1:${LOCAL_PORT}:127.0.0.1:${REMOTE_PORT}"
-    log_exec ssh -S "$SSH_MASTER_SOCKET" -M ${port_forward_flag:-} -Nfn -l "$REPO_USER" "$REPO_STRATUM0"
+    log_exec ssh -o StrictHostKeyChecking=accept-new -o HashKnownHosts=no -S "$SSH_MASTER_SOCKET" -M ${port_forward_flag:-} -Nfn -l "$REPO_USER" "$REPO_STRATUM0"
     USER_UID=$(exec_on id -u)
     USER_GID=$(exec_on id -g)
     SSH_MASTER_UP=true
@@ -391,6 +486,8 @@ function publish_transaction() {
     log "Publishing transaction on $REPO"
     exec_on "cvmfs_server publish -a 'tools-${GIT_COMMIT:0:7}' -m 'Automated tool installation for commit ${GIT_COMMIT}' ${REPO}"
     CVMFS_TRANSACTION_UP=false
+    PUBLISH_COMPLETE=true
+    log "Published ${REPO} for commit ${GIT_COMMIT}"
 }
 
 
@@ -610,7 +707,8 @@ function run_galaxy() {
 
 function stop_galaxy() {
     log "Persisting Galaxy log"
-    exec_on docker logs "$CONTAINER_NAME" > galaxy-${BUILD_NUMBER}.log 2>&1 || true
+    mkdir -p "$CI_LOG_DIR"
+    exec_on docker logs "$CONTAINER_NAME" > "${CI_LOG_DIR}/galaxy.log" 2>&1 || true
     log "Stopping Galaxy on Stratum 0"
     # NOTE: docker rm -f exits 1 if the container does not exist
     exec_on docker stop "$CONTAINER_NAME" || true  # try graceful shutdown first
@@ -660,8 +758,7 @@ function show_logs() {
 function show_paths() {
     log_debug "contents of \$GALAXY_DATABASE_TMPDIR (will be discarded)"
     exec_on tree -L 6 "$GALAXY_DATABASE_TMPDIR"
-    log_debug "contents of OverlayFS upper mount (will be published)"
-    exec_on tree -L 6 "$OVERLAYFS_UPPER"
+    summary_exec 'Contents of OverlayFS upper mount (will be published)' tree -L 6 "$OVERLAYFS_UPPER"
 }
 
 
@@ -700,8 +797,7 @@ function check_for_repo_changes() {
     #show_logs
     log "Checking for changes to repo"
     show_paths
-    log_debug "diff of shed_tool_conf.xml"
-    exec_on diff -u "${OVERLAYFS_LOWER}${stc##*${REPO}}" "${OVERLAYFS_MOUNT}${stc##*${REPO}}" || true
+    summary_exec 'Diff of shed_tool_conf.xml' diff -u "${OVERLAYFS_LOWER}${stc##*${REPO}}" "${OVERLAYFS_MOUNT}${stc##*${REPO}}"
     log_debug "diff of shed_tool_data_table_conf.xml"
     exec_on diff -u "${OVERLAYFS_LOWER}${SHED_TOOL_DATA_TABLE_CONFIG##*${REPO}}" \
         "${OVERLAYFS_MOUNT}${SHED_TOOL_DATA_TABLE_CONFIG##*${REPO}}" || true
@@ -787,8 +883,24 @@ function do_install_remote() {
 }
 
 
+function report_outcome() {
+    if $PUBLISH; then
+        if $PUBLISH_COMPLETE; then
+            log "SUCCESS: ${REPO} published for commit ${GIT_COMMIT}"
+            summary "### :white_check_mark: Published to \`${REPO}\`"
+        else
+            log_error "${REPO} was NOT published"
+            summary "### :x: Not published to \`${REPO}\`"
+        fi
+    else
+        log "SUCCESS: test installation complete, nothing published"
+        summary '### :white_check_mark: Test installation complete, nothing published'
+    fi
+    summary
+}
+
+
 function main() {
-    check_bot_command
     load_repo_configs
     detect_changes
     set_repo_vars
@@ -798,6 +910,7 @@ function main() {
     else
         do_install_remote
     fi
+    report_outcome
     return 0
 }
 

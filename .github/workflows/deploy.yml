@@ -1,0 +1,103 @@
+# Install changed tools and publish them to CVMFS, on merge of a PR to master. Success or failure is reported back as
+# a comment on the merged PR, since by then nobody is watching the PR's checks.
+#
+# Retry a failed deploy with Actions -> Deploy tools to CVMFS -> the failed run -> "Re-run failed jobs".
+name: Deploy tools to CVMFS
+
+on:
+  pull_request:
+    types: [closed]
+    branches: ["master"]
+    paths:
+      - 'usegalaxy.org/**'
+      - 'test.galaxyproject.org/**'
+      - 'cloud/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# Serialize deploys: three of the four toolsets publish to the same Stratum 0, and concurrent CVMFS transactions
+# collide. Never cancel a deploy in progress, that is how an open transaction gets stranded.
+concurrency:
+  group: cvmfs-publish
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == true
+    runs-on: [self-hosted, cvmfs]
+    # Scopes STRATUM0_SSH_KEY to this job, so other workflows on this runner cannot reach it
+    environment: cvmfs-publish
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Start ssh-agent with the Stratum 0 key
+        env:
+          STRATUM0_SSH_KEY: ${{ secrets.STRATUM0_SSH_KEY }}
+        run: |
+          eval "$(ssh-agent -s)"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          printf '%s\n' "$STRATUM0_SSH_KEY" | ssh-add -
+
+      - name: Comment that the deploy has started
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `🚀 Deploying tools to CVMFS — [watch progress](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`,
+            });
+
+      - name: Install and publish tools
+        env:
+          PUBLISH: 'true'
+          # The merge commit's first parent is master immediately before the merge, so this is the PR's net change.
+          # Correct for both merge commits and squashes; rebase merging must stay disabled for it to hold.
+          COMMIT_RANGE: ${{ github.event.pull_request.merge_commit_sha }}^1...${{ github.event.pull_request.merge_commit_sha }}
+        run: .ci/github-actions.sh
+
+      - name: Comment the deploy result
+        uses: actions/github-script@v9
+        if: always()
+        with:
+          script: |
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const ok = '${{ job.status }}' === 'success';
+            const body = ok
+              ? `✅ Deploy succeeded — [run summary](${url}).`
+              : [
+                  `❌ **Deploy FAILED** — [run summary](${url}).`,
+                  '',
+                  'The tools in this PR are merged but may not be installed on CVMFS. Please investigate.',
+                  '',
+                  'Retry with *Actions → Deploy tools to CVMFS → this run → Re-run failed jobs*. If that is not',
+                  'possible, deployment can be re-triggered by opening a new PR that changes the `.lock` file(s)',
+                  'modified here (whitespace or ordering is enough).',
+                ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });
+
+      - name: Stop ssh-agent
+        if: always()
+        run: ssh-agent -k || true
+
+      - name: Upload Galaxy log
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: galaxy-log
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: ignore

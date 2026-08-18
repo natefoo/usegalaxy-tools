@@ -1,0 +1,43 @@
+# Test installation of changed tools, without publishing to CVMFS. Runs on the self-hosted runner because installing
+# into a fuse-overlayfs stacked on CVMFS is not possible on GitHub-hosted runners.
+name: Test tool installation
+
+on:
+  pull_request:
+    branches: ["master"]
+    paths:
+      - 'usegalaxy.org/**'
+      - 'test.galaxyproject.org/**'
+      - 'cloud/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tool-install-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test-install:
+    runs-on: [self-hosted, cvmfs]
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # detect_changes diffs the PR against its merge base, so the full history is needed
+          fetch-depth: 0
+
+      - name: Install tools
+        env:
+          PUBLISH: 'false'
+          COMMIT_RANGE: ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+        run: .ci/github-actions.sh
+
+      - name: Upload Galaxy log
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: galaxy-log
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: ignore
