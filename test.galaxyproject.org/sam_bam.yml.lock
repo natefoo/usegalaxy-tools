@@ -44,6 +44,7 @@ tools:
   owner: devteam
   revisions:
   - e613c1ad4c4c
+  - 2ce517eb9af2
   tool_panel_section_id: sam_bam
   tool_panel_section_label: SAM/BAM
 - name: samtools_flagstat
