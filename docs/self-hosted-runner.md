@@ -2,9 +2,10 @@
 
 Tool installation needs to mount CVMFS and stack a `fuse-overlayfs` on top of it, which
 GitHub-hosted runners do not permit. `.github/workflows/test-install.yml` and
-`.github/workflows/deploy.yml` therefore run on a self-hosted runner labeled `cvmfs`.
+`.github/workflows/deploy.yml` therefore run on isolated self-hosted runners labeled `cvmfs`.
 
-This document covers provisioning that runner and the repository settings it depends on.
+This document covers provisioning those runners and the repository settings they depend on. The PR-test and publish
+jobs must never share a host: PR code is untrusted even after a workflow run is approved.
 
 ## Host requirements
 
@@ -17,7 +18,7 @@ This document covers provisioning that runner and the repository settings it dep
 | `python3` with `venv` | `setup_ephemeris` builds a virtualenv per run. |
 | `git`, `rsync`, `curl`, `tree`, `psmisc` | `rsync` copies the overlay upper dir to the Stratum 0; `tree` and `fuser` (from `psmisc`) are used when reporting and unmounting. |
 
-Run the runner as a **dedicated non-root user**. It must be able to create files inside the
+Run each runner as a **dedicated non-root user**. It must be able to create files inside the
 overlay from within the Galaxy container — see the `FIXME: unprivileged would be preferable` note
 in `.ci/github-actions.sh`, which is why `fuse-overlayfs` is mounted with `allow_root`.
 
@@ -45,63 +46,58 @@ needs. A cold cache costs one slow run, nothing worse.
 The deploy job opens an SSH control connection to the Stratum 0 to run `cvmfs_server transaction`
 and `cvmfs_server publish`, and to `rsync` the overlay upper dir across.
 
-- **Host keys need no setup.** The control connection is opened with
-  `StrictHostKeyChecking=accept-new`, so the Stratum 0 key is recorded in the runner user's
-  `~/.ssh/known_hosts` on first connect and verified on every deploy after that. If a Stratum 0 is
-  ever rebuilt, deploys to it will fail until the stale entry is removed with `ssh-keygen -R`,
-  which is the intended behaviour — a changed host key should stop a publish, not be accepted
-  silently.
+- **Provision host keys before the first deploy.** Install keys whose fingerprints were verified out of band in the
+  publish runner user's `~/.ssh/known_hosts` or the system `ssh_known_hosts`. The control connection uses
+  `StrictHostKeyChecking=yes`, so an absent or changed key stops the deploy.
 - **The private key is not stored on the runner.** It lives in the `cvmfs-publish` environment as
   the `STRATUM0_SSH_KEY` secret and is loaded into an `ssh-agent` for the life of the deploy job
-  only. This is the point of using an environment: another workflow scheduled onto the same runner
-  cannot reach the key. The agent is killed in an `if: always()` step, which matters on a
-  persistent runner — a leaked agent would be a leaked key for every job that follows.
+  only. The publish runner group only permits the default-branch deploy workflow, and required environment reviewers
+  provide a separate authorization gate. The agent is killed in an `if: always()` step.
 
 ## Runner registration
 
-Register the runner **to this repository**, not to the organization, with labels:
+Create two **organization-level runner groups** that allow only selected workflows:
+
+- `cvmfs-test` allows only `galaxyproject/usegalaxy-tools/.github/workflows/test-install.yml`.
+- `cvmfs-publish` allows only `galaxyproject/usegalaxy-tools/.github/workflows/deploy.yml` from the default branch.
+
+Register separate hosts in the two groups with the labels `self-hosted, Linux, X64, cvmfs`. Do not place a host in
+both groups. The test host executes PR-controlled code, so give it no secrets or SSH/write access to Stratum 0; allow
+only the read-only HTTP access needed by the CVMFS client. Rebuild it from a clean image after untrusted runs. Keep
+exactly one runner in the publish group so its runner queue serializes every deploy without dropping pending runs. The
+publish host must never accept a `pull_request` job.
+
+Install the job-started hook on each host. It removes labeled Galaxy containers, mounts, and scratch directories left
+behind when a job is forcibly terminated:
 
 ```
-self-hosted, Linux, X64, cvmfs
+ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/actions-runner-hooks/usegalaxy-tools-job-started.sh
 ```
 
-Install the job-started hook, which cleans up mounts and scratch directories left behind when a
-job is cancelled or times out (the runner SIGKILLs the job, so the script's trap handler never
-runs):
-
-```
-ACTIONS_RUNNER_HOOK_JOB_STARTED=/path/to/usegalaxy-tools/.ci/runner-job-started.sh
-```
-
-Set it in the runner's `.env` file. If `SCRATCH_ROOT` is not the default, export it there too so
-the hook cleans the right directory.
+Copy the hook from `.ci/runner-job-started.sh` to that root- or configuration-management-owned path; do not execute a
+hook from a repository checkout that a PR can modify. Set it in the runner's `.env` file. If `SCRATCH_ROOT` is not the
+default, export it there too so the hook cleans the right directory. Run only one runner service per host and scratch
+root, because a job-started hook assumes that every existing run directory is stale.
 
 ## Repository settings
 
 - **Settings → Actions → General**
-  - Fork pull request workflows: *Require approval for all external contributors*. This is what
-    keeps a public repo's PRs from running arbitrary code on a privileged runner.
+  - Fork pull request workflows: *Require approval for all external contributors*. Approval controls scheduling; it
+    does not make PR code trusted, which is why the test runner is isolated from publishing.
   - Workflow permissions: read-only by default.
+  - After migrating the repository's existing workflows, require actions to be pinned to a full-length commit SHA.
 - **Settings → Environments → `cvmfs-publish`**
   - Secret `STRATUM0_SSH_KEY` — the private key authorized on the Stratum 0 hosts.
-  - No required reviewers: merge permission is already the gate, and a second approval click after
-    merge would only re-confirm a decision the same people just made.
+  - Add `@galaxyproject/tool-installers` as required reviewers and prevent self-review. This is the deploy authorization
+    gate; ordinary merge permission is not sufficient.
 - **Settings → Branches → branch protection for `master`**
-  - Require the `test-install` check to pass before merging. This replaces the convention of
-    "merge only once you've verified the console output" with something actually enforced.
+  - Require the `test-install` check to pass before merging. The check always reports, including for PRs without tool
+    changes; only its privileged installation dependency is conditional.
+  - Require pull requests and CODEOWNER approval, including for `.github/workflows/` and `.ci/`, without administrator
+    bypass.
   - **Disable rebase merging.** The deploy workflow derives the PR's changes from
     `<merge_commit_sha>^1...<merge_commit_sha>`, which is correct for merge commits and squashes
     but not for rebase merges, where it would see only the PR's last commit.
-
-### A caveat worth stating plainly
-
-A repository-scoped runner can be targeted by *any* workflow in the repository — the "allow
-selected workflows" control is a runner **group** feature, and runner groups are only available to
-organizations and enterprises. The real protections here are the fork-approval setting above and
-branch protection on `.github/workflows/`, plus keeping the Stratum 0 key in an environment rather
-than on the runner's disk. Since only members of `@galaxyproject/tool-installers` and org admins
-can approve fork PR runs or merge, this is adequate — but it is a policy control, not a technical
-one, so it should be understood rather than assumed.
 
 ## Verifying the runner
 
@@ -111,9 +107,11 @@ a throwaway workflow that does nothing but mount and unmount:
 ```yaml
 jobs:
   smoke:
-    runs-on: [self-hosted, cvmfs]
+    runs-on:
+      group: cvmfs-test
+      labels: cvmfs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: |
           set -euo pipefail
           export REPO_STRATUM0=cvmfs0-psu1.galaxyproject.org
