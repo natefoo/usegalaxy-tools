@@ -13,15 +13,23 @@ set -uo pipefail
 
 : ${SCRATCH_ROOT:=/data/actions-runner/scratch}
 
-# Run dirs older than this are removed even if idle, in case a run dir was orphaned without a mount
-MAX_AGE_DAYS=1
+DOCKER_RUN_LABEL='org.galaxyproject.usegalaxy-tools.runner-managed=true'
 
 log() {
     echo "[runner-job-started] $*"
 }
 
+# Detached containers survive if the job is forcibly terminated. Remove them before unmounting their bind mounts.
+if command -v docker >/dev/null 2>&1; then
+    while read -r container_id; do
+        [ -n "$container_id" ] || continue
+        log "Removing stale container: ${container_id}"
+        docker rm -f "$container_id" || log "WARNING: could not remove container ${container_id}"
+    done < <(docker ps -aq --filter "label=${DOCKER_RUN_LABEL}" 2>/dev/null)
+fi
+
 [ -d "$SCRATCH_ROOT" ] || {
-    log "${SCRATCH_ROOT} does not exist, nothing to clean"
+    log "${SCRATCH_ROOT} does not exist, no scratch state to clean"
     exit 0
 }
 
@@ -37,18 +45,16 @@ while read -r mountpoint; do
         || log "WARNING: could not unmount ${mountpoint}"
 done < <(findmnt -rno TARGET | grep "^${SCRATCH_ROOT}/" | sort -r)
 
-# Remove run dirs that no longer contain a mount. Anything still mounted is left alone: a subsequent job gets a fresh
-# $GITHUB_RUN_ID and so its own run dir, and the mount should be reapable on a later pass.
+# Remove run dirs that no longer contain a mount. Completed-job logs have already been uploaded, and canceled jobs must
+# not leave an overlay upper/work directory that a re-run could reuse.
 for run_dir in "$SCRATCH_ROOT"/*; do
     [ -d "$run_dir" ] || continue
     if findmnt -rno TARGET | grep -q "^${run_dir}\(/\|$\)"; then
         log "Leaving ${run_dir}, still has a mount under it"
         continue
     fi
-    if [ -n "$(find "$run_dir" -maxdepth 0 -mtime "+${MAX_AGE_DAYS}")" ]; then
-        log "Removing stale run dir: ${run_dir}"
-        rm -rf "$run_dir" || log "WARNING: could not remove ${run_dir}"
-    fi
+    log "Removing stale run dir: ${run_dir}"
+    rm -rf "$run_dir" || log "WARNING: could not remove ${run_dir}"
 done
 
 exit 0

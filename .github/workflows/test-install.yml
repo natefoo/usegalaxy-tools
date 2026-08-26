@@ -5,10 +5,6 @@ name: Test tool installation
 on:
   pull_request:
     branches: ["master"]
-    paths:
-      - 'usegalaxy.org/**'
-      - 'test.galaxyproject.org/**'
-      - 'cloud/**'
 
 permissions:
   contents: read
@@ -18,8 +14,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-install:
-    runs-on: [self-hosted, cvmfs]
+  changes:
+    name: Detect tool changes
+    runs-on: ubuntu-latest
+    outputs:
+      tool_changes: ${{ steps.detect.outputs.tool_changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect tool changes
+        id: detect
+        env:
+          COMMIT_RANGE: ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+        run: |
+          if git diff --quiet "$COMMIT_RANGE" -- usegalaxy.org/ test.galaxyproject.org/ cloud/; then
+            echo 'tool_changes=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'tool_changes=true' >> "$GITHUB_OUTPUT"
+          fi
+
+  test-install-run:
+    name: Test tool installation
+    needs: changes
+    if: needs.changes.outputs.tool_changes == 'true'
+    runs-on:
+      group: cvmfs-test
+      labels: cvmfs
     timeout-minutes: 120
     steps:
       - name: Checkout
@@ -41,3 +64,26 @@ jobs:
           name: galaxy-log
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: ignore
+
+  # This job always reports the required check, including on PRs without tool changes. Keep the privileged runner job
+  # conditional so documentation-only changes never consume it.
+  test-install:
+    name: test-install
+    needs: [changes, test-install-run]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify test-install result
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          TOOL_CHANGES: ${{ needs.changes.outputs.tool_changes }}
+          INSTALL_RESULT: ${{ needs.test-install-run.result }}
+        run: |
+          if [ "$CHANGES_RESULT" != success ]; then
+            echo 'Tool change detection failed' >&2
+            exit 1
+          fi
+          if [ "$TOOL_CHANGES" = true ] && [ "$INSTALL_RESULT" != success ]; then
+            echo "Test installation did not succeed: $INSTALL_RESULT" >&2
+            exit 1
+          fi

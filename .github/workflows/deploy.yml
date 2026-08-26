@@ -17,17 +17,16 @@ permissions:
   contents: read
   pull-requests: write
 
-# Serialize deploys: three of the four toolsets publish to the same Stratum 0, and concurrent CVMFS transactions
-# collide. Never cancel a deploy in progress, that is how an open transaction gets stranded.
-concurrency:
-  group: cvmfs-publish
-  cancel-in-progress: false
+# Keep exactly one runner in the cvmfs-publish group. Its normal runner queue preserves every deploy while serializing
+# the CVMFS transactions; a concurrency group would discard older pending runs when several PRs merge close together.
 
 jobs:
   deploy:
     if: github.event.pull_request.merged == true
-    runs-on: [self-hosted, cvmfs]
-    # Scopes STRATUM0_SSH_KEY to this job, so other workflows on this runner cannot reach it
+    runs-on:
+      group: cvmfs-publish
+      labels: cvmfs
+    # Requests the protected publish environment; its required reviewers are the deployment authorization gate.
     environment: cvmfs-publish
     timeout-minutes: 180
     steps:

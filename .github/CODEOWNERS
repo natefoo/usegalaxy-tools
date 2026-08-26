@@ -12,3 +12,7 @@
 # Galaxy Project US servers
 usegalaxy.org/*             @galaxyproject/tool-installers
 test.galaxyproject.org/*    @galaxyproject/tool-installers
+
+# CI pipeline and repository configuration require admin review, not just tool-installer review
+/.ci/                       @galaxyproject/tool-installers-admins
+/.github/                   @galaxyproject/tool-installers-admins

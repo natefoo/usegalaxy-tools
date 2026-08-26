@@ -40,7 +40,9 @@ GALAXY_TEMPLATE_DB='galaxy.sqlite'
 
 # Set by Actions, so the defaults here are for development
 GIT_COMMIT="${GITHUB_SHA:-$(git rev-parse HEAD)}"
-RUN_ID="${GITHUB_RUN_ID:-$$}"
+# GITHUB_RUN_ID is stable across re-runs, while GITHUB_RUN_ATTEMPT increments for each attempt.
+RUN_ID="${GITHUB_RUN_ID:-$$}-${GITHUB_RUN_ATTEMPT:-1}"
+DOCKER_RUN_LABEL='org.galaxyproject.usegalaxy-tools.runner-managed=true'
 
 # Per-run scratch dir and the log dir within it that the workflow uploads as an artifact
 RUN_DIR="${SCRATCH_ROOT}/${RUN_ID}"
@@ -435,7 +437,7 @@ function start_ssh_control() {
     SSH_MASTER_SOCKET="${SSH_MASTER_SOCKET_DIR}/ssh-tunnel-${REPO_USER}-${REPO_STRATUM0}.sock"
     log_exec mkdir -p "$SSH_MASTER_SOCKET_DIR"
     $USE_LOCAL_OVERLAYFS || port_forward_flag="-L 127.0.0.1:${LOCAL_PORT}:127.0.0.1:${REMOTE_PORT}"
-    log_exec ssh -o StrictHostKeyChecking=accept-new -o HashKnownHosts=no -S "$SSH_MASTER_SOCKET" -M ${port_forward_flag:-} -Nfn -l "$REPO_USER" "$REPO_STRATUM0"
+    log_exec ssh -o StrictHostKeyChecking=yes -S "$SSH_MASTER_SOCKET" -M ${port_forward_flag:-} -Nfn -l "$REPO_USER" "$REPO_STRATUM0"
     USER_UID=$(exec_on id -u)
     USER_GID=$(exec_on id -g)
     SSH_MASTER_UP=true
@@ -535,7 +537,7 @@ function run_container_for_preconfigure() {
     PRECONFIGURED_IMAGE_NAME="${PRECONFIGURE_CONTAINER_NAME}d"
     ORIGINAL_IMAGE_NAME="$GALAXY_DOCKER_IMAGE"
     log "Starting Galaxy container for preconfiguration on Stratum 0"
-    exec_on docker run -d --name="$PRECONFIGURE_CONTAINER_NAME" \
+    exec_on docker run -d --label "$DOCKER_RUN_LABEL" --name="$PRECONFIGURE_CONTAINER_NAME" \
         -v "${WORKDIR}/:/work/" \
         $source_mount_flag \
         -v "${GALAXY_DATABASE_TMPDIR}:/galaxy/server/database" \
@@ -588,7 +590,7 @@ function run_mounted_galaxy() {
 
     if [ -n "$GALAXY_TEMPLATE_DB_URL" ]; then
         log "Updating database"
-        exec_on docker run --rm --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}-setup" \
+        exec_on docker run --rm --label "$DOCKER_RUN_LABEL" --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}-setup" \
             -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/${GALAXY_TEMPLATE_DB}" \
             -v "${GALAXY_SOURCE_TMPDIR}:/galaxy/server" \
             -v "${GALAXY_DATABASE_TMPDIR}:/galaxy/server/database" \
@@ -597,7 +599,7 @@ function run_mounted_galaxy() {
     fi
 
     log "Starting Galaxy on Stratum 0"
-    exec_on docker run -d -p 127.0.0.1:${REMOTE_PORT}:8080 --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}" \
+    exec_on docker run -d --label "$DOCKER_RUN_LABEL" -p 127.0.0.1:${REMOTE_PORT}:8080 --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}" \
         -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/${GALAXY_TEMPLATE_DB}" \
         -e "GALAXY_CONFIG_OVERRIDE_INTEGRATED_TOOL_PANEL_CONFIG=/tmp/integrated_tool_panel.xml" \
         -e "GALAXY_CONFIG_OVERRIDE_SHED_TOOL_CONFIG_FILE=${SHED_TOOL_CONFIG}" \
@@ -628,7 +630,7 @@ function run_cloudve_galaxy() {
 
     if [ -n "$GALAXY_TEMPLATE_DB_URL" ]; then
         log "Updating database"
-        exec_on docker run --rm --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}-setup" \
+        exec_on docker run --rm --label "$DOCKER_RUN_LABEL" --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}-setup" \
             -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/${GALAXY_TEMPLATE_DB}" \
             -v "${GALAXY_DATABASE_TMPDIR}:/galaxy/server/database" \
             "$GALAXY_DOCKER_IMAGE" ./.venv/bin/python ./scripts/manage_db.py upgrade
@@ -636,7 +638,7 @@ function run_cloudve_galaxy() {
 
     # we could just start the patch container and run Galaxy in it with `docker exec`, but then logs aren't captured
     log "Starting Galaxy on Stratum 0"
-    exec_on docker run -d -p 127.0.0.1:${REMOTE_PORT}:8080 --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}" \
+    exec_on docker run -d --label "$DOCKER_RUN_LABEL" -p 127.0.0.1:${REMOTE_PORT}:8080 --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}" \
         -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/${GALAXY_TEMPLATE_DB}" \
         -e "GALAXY_CONFIG_OVERRIDE_INTEGRATED_TOOL_PANEL_CONFIG=/tmp/integrated_tool_panel.xml" \
         -e "GALAXY_CONFIG_OVERRIDE_SHED_TOOL_CONFIG_FILE=${SHED_TOOL_CONFIG}" \
@@ -669,7 +671,7 @@ function run_bgruening_galaxy() {
     log "Copying additional configs to Stratum 0"
     copy_to ".ci/nginx.conf"
     log "Starting Galaxy on Stratum 0"
-    exec_on docker run -d -p 127.0.0.1:${REMOTE_PORT}:80 --name="${CONTAINER_NAME}" \
+    exec_on docker run -d --label "$DOCKER_RUN_LABEL" -p 127.0.0.1:${REMOTE_PORT}:80 --name="${CONTAINER_NAME}" \
         -e "GALAXY_CONFIG_INSTALL_DATABASE_CONNECTION=sqlite:///${INSTALL_DATABASE}" \
         -e "GALAXY_CONFIG_SHED_TOOL_CONFIG_FILE=${SHED_TOOL_CONFIG}" \
         -e "GALAXY_CONFIG_MASTER_API_KEY=${API_KEY:=deadbeef}" \

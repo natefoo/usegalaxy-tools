@@ -79,7 +79,7 @@ Before proceeding with deployment, ensure the following preconditions on a PR ar
 
 Once preconditions are met:
 
-1. **The test installation runs automatically** when the PR is opened or updated (*Test tool installation*). For a PR from a fork by someone outside the organization, a tool installer has to approve the run first.
+1. **The test installation runs automatically** when the PR is opened or updated (*Test tool installation*). For a PR from a fork by someone outside the organization, an authorized maintainer has to approve the run first.
 2. **Review the run summary.** Just because it is green does not mean it succeeded. Open the workflow run and look for two things:
    1. **Contents of OverlayFS upper mount (will be published)** contains (at least) `config/shed_tool_conf.xml` and `shed_tools/.../the_repos_you_installed`
    2. **Diff of shed_tool_conf.xml** contains the tools in the repos you installed
