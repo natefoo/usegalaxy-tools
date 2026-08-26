@@ -85,7 +85,6 @@ root, because a job-started hook assumes that every existing run directory is st
   - Fork pull request workflows: *Require approval for all external contributors*. Approval controls scheduling; it
     does not make PR code trusted, which is why the test runner is isolated from publishing.
   - Workflow permissions: read-only by default.
-  - After migrating the repository's existing workflows, require actions to be pinned to a full-length commit SHA.
 - **Settings → Environments → `cvmfs-publish`**
   - Secret `STRATUM0_SSH_KEY` — the private key authorized on the Stratum 0 hosts.
   - Add `@galaxyproject/tool-installers` as required reviewers and prevent self-review. This is the deploy authorization
@@ -111,7 +110,7 @@ jobs:
       group: cvmfs-test
       labels: cvmfs
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7
       - run: |
           set -euo pipefail
           export REPO_STRATUM0=cvmfs0-psu1.galaxyproject.org
