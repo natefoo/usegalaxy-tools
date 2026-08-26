@@ -28,18 +28,17 @@ Two directories, both owned by the runner user, both configurable via the runner
 environment (defaults shown):
 
 ```
-SCRATCH_ROOT=/data/actions-runner/scratch        # per-run overlayfs and CVMFS mounts
-CVMFS_CACHE_ROOT=/data/actions-runner/cvmfs-cache  # persistent CVMFS cache, kept warm between runs
+SCRATCH_ROOT=/data/actions-runner/scratch          # per-run overlayfs and CVMFS mounts
+CVMFS_CACHE_ROOT=/data/actions-runner/cvmfs-cache  # CVMFS cache
 ```
 
 `SCRATCH_ROOT` needs room for a full copy-up of whatever a single run installs. It must **not** be
 set to `$GITHUB_WORKSPACE`: that is the git checkout, and creating the overlay directories inside
 it would pollute the working tree that change detection diffs.
 
-`CVMFS_CACHE_ROOT` is bounded by the `CVMFS_QUOTA_LIMIT` soft limit in `.ci/cvmfs-fuse.conf`,
-currently 8 GB. To reclaim space sooner, check that no job is running and delete the
-per-repository subdirectories under it, or the whole directory — the next run recreates what it
-needs. A cold cache costs one slow run, nothing worse.
+Both hosts are rolled back to a clean snapshot, so neither directory survives between runs and
+every run starts with a cold cache. `CVMFS_QUOTA_LIMIT` in `.ci/cvmfs-fuse.conf` still bounds the
+cache within a run, currently 8 GB.
 
 ## SSH access to the Stratum 0
 
@@ -63,9 +62,12 @@ Create two **organization-level runner groups** that allow only selected workflo
 
 Register separate hosts in the two groups with the labels `self-hosted, Linux, X64, cvmfs`. Do not place a host in
 both groups. The test host executes PR-controlled code, so give it no secrets or SSH/write access to Stratum 0; allow
-only the read-only HTTP access needed by the CVMFS client. Rebuild it from a clean image after untrusted runs. Keep
-exactly one runner in the publish group so its runner queue serializes every deploy without dropping pending runs. The
-publish host must never accept a `pull_request` job.
+only the read-only HTTP access needed by the CVMFS client. Keep exactly one runner in the publish group so its runner
+queue serializes every deploy without dropping pending runs. The publish host must never accept a `pull_request` job.
+
+Both hosts are rolled back to a clean snapshot between runs. On the test host this is what prevents PR-controlled code
+from persisting to a later run; on the publish host it is not load-bearing, but keeping the two identical means there
+is one operational story rather than two.
 
 Install the job-started hook on each host. It removes labeled Galaxy containers, mounts, and scratch directories left
 behind when a job is forcibly terminated:
