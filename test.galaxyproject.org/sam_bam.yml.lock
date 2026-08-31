@@ -13,6 +13,7 @@ tools:
   owner: devteam
   revisions:
   - 47035d167365
+  - 8fca6e1eac98
   tool_panel_section_id: sam_bam
   tool_panel_section_label: SAM/BAM
 - name: samtools_phase
