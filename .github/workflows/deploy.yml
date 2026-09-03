@@ -5,10 +5,13 @@
 name: Deploy tools to CVMFS
 
 # pull_request_target rather than pull_request: a fork-originated pull_request event gets no secrets and a read-only
-# token, so the Stratum 0 key would be empty and the result comment would be refused. pull_request_target runs in the
-# base repository's context, and takes the workflow from the default branch rather than from the PR, so a PR cannot
-# alter the job that handles the key. The usual danger of the trigger does not apply here because the only thing
-# checked out is the merge commit, which is already on master.
+# token, so the Stratum 0 key would be empty and the result comment would be refused.
+#
+# The trust model this establishes is "merged code is trusted code". The classic pull_request_target hazard is a
+# privileged workflow checking out an *unmerged* fork branch, and that never happens here: the job only proceeds once
+# the PR is merged, so everything it runs -- the workflow, .ci/github-actions.sh, and the tool definitions themselves
+# -- has passed branch protection, CODEOWNER review, and the environment's deployment approval. A merged change to
+# any of those does run with the publishing credential, which is why /.ci/ and /.github/ have CODEOWNERS.
 on:
   pull_request_target:
     types: [closed]
@@ -35,11 +38,22 @@ jobs:
     environment: cvmfs-publish
     timeout-minutes: 180
     steps:
+      # No ref: actions/checkout refuses to check out a fork PR's head or merge SHA under pull_request_target, and
+      # naming the merge commit explicitly is exactly that. The default self-checkout is exempt from the guard and
+      # resolves to the base branch, which by this point contains the merge.
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
+
+      # The base branch tip is normally the merge commit, but another PR merging at the same moment would leave it
+      # one commit further along. Reachability, not equality, is what COMMIT_RANGE below actually requires.
+      - name: Verify the merge commit is present
+        env:
+          MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          git merge-base --is-ancestor "$MERGE_COMMIT_SHA" HEAD \
+            || { echo "merge commit $MERGE_COMMIT_SHA is not in the checked out history" >&2; exit 1; }
 
       - name: Start ssh-agent with the Stratum 0 key
         env:
