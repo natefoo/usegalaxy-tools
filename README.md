@@ -39,7 +39,7 @@ In the commands below fill the `{server_name}` as appropriate (usegalaxy.org, te
 1. Commit `{server_name}/<repo>.yaml{.lock}`
 1. Create a PR against the `master` branch of [usegalaxy-tools](https://github.com/galaxyproject/usegalaxy-tools)
     - Use PR labels as appropriate
-    - To aid PR mergers, you can include information on tools in the repo's use of `$GALAXY_SLOTS`, or even PR any needed update(s) to [Main's job_conf.xml](https://github.com/galaxyproject/usegalaxy-playbook/blob/master/env/main/templates/galaxy/config/job_conf.xml.j2) as explained in the "[Determine tool requirements](#determine-tool-requirements)" section once the test installation (via Travis) succeeds (see details below)
+    - To aid PR mergers, you can include information on tools in the repo's use of `$GALAXY_SLOTS`, or even PR any needed update(s) to [Main's job_conf.xml](https://github.com/galaxyproject/usegalaxy-playbook/blob/master/env/main/templates/galaxy/config/job_conf.xml.j2) as explained in the "[Determine tool requirements](#determine-tool-requirements)" section once the test installation succeeds (see details below)
 1. Once the PR is merged and the tool appears on [usegalaxy.org](https://usegalaxy.org/) or [test.galaxyproject.org](https://test.galaxyproject.org), test to ensure the tool works.
 
 ## Loading tools in your Galaxy
@@ -79,14 +79,14 @@ Before proceeding with deployment, ensure the following preconditions on a PR ar
 
 Once preconditions are met:
 
-1. Comment `@galaxybot test this` to test deployment.
-2. **Review the Jenkins test console output.** Just because it is green does not mean it succeeded. You are looking for two things:
-   1. **#### contents of OverlayFS upper mount (will be published)** contains (at least) `config/shed_tool_conf.xml` and `shed_tools/.../the_repos_you_installed`
-   2. **#### diff of shed_tool_conf.xml** contains the tools in the repos you installed
-3. Comment `galaxybot deploy this` to deploy. This will cause the **default** test on the PR to run again, and the details link for the test will be updated to a new Jenkins build.
-4. **Review the Jenkins deploy console output.** Just because it is green does not mean it succeeded.
-   1. Verify that the console output contains the same expected output as in the test deployment,
-   2. **Verify that publishing to CVMFS was successful** with this appearing toward the end of the console output:
+1. **The test installation runs automatically** when the PR is opened or updated (*Test tool installation*). For a PR from a fork by someone outside the organization, an authorized maintainer has to approve the run first.
+2. **Review the run summary.** Just because it is green does not mean it succeeded. Open the workflow run and look for two things:
+   1. **Contents of OverlayFS upper mount (will be published)** contains (at least) `config/shed_tool_conf.xml` and `shed_tools/.../the_repos_you_installed`
+   2. **Diff of shed_tool_conf.xml** contains the tools in the repos you installed
+3. **Merge the PR.** This triggers the *Deploy tools to CVMFS* workflow, which installs the tools again and publishes them. A bot comment on the PR reports that the deploy started, and another reports whether it succeeded.
+4. **Review the deploy run summary.** Just because it is green does not mean it succeeded.
+   1. Verify that the summary contains the same expected output as in the test installation,
+   2. **Verify that publishing to CVMFS was successful** with this appearing toward the end of the log:
       ```
       # Publishing transaction on main.galaxyproject.org
       Waiting for upload of files before committing...
@@ -107,7 +107,9 @@ Once preconditions are met:
       Remounting newly created repository revision
       ```
       Warnings about `[WARNING] 'shed_tools/.../.wh..opq' should be deleted, but was not found in repository.` can be safely ignored.
-5. Merge the PR **only after you have verified via Jenkins console output that the deployment succeeded.** If it failed, the only way to retry deployment after merge is to make a new PR with whitespace/order changes in the `.lock` file(s) modified in the original PR.
+5. **If the deploy failed,** retry it with *Actions → Deploy tools to CVMFS →* the failed run *→ Re-run failed jobs*. If that is not possible, deployment can still be re-triggered by making a new PR with whitespace/order changes in the `.lock` file(s) modified in the original PR.
 6. If these are new tools and not just new versions of already installed tools, review whether the tool uses multiple cores (the presence of `${GALAXY_SLOTS:-N}` in `<command>`) and whether increased memory is required and PR changes to the TPV config in https://github.com/galaxyproject/usegalaxy-playbook/
 
-Only approved tool installers can install tools. Request Jenkins access and admission to the Github Team from project admins for approval.
+Only approved tool installers can install tools. Request admission to the Github Team from project admins for approval.
+
+The workflows that do this run on a self-hosted runner, because installing tools into a `fuse-overlayfs` stacked on CVMFS is not possible on GitHub-hosted runners. See [docs/self-hosted-runner.md](docs/self-hosted-runner.md) for how it is provisioned.
