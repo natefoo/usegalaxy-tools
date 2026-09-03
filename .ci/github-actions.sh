@@ -32,12 +32,6 @@ GALAXY_DOCKER_IMAGE='galaxy/galaxy-min:dev'
 # Disable if using a locally built image e.g. for debugging
 GALAXY_DOCKER_IMAGE_PULL=true
 
-#GALAXY_TEMPLATE_DB_URL='https://raw.githubusercontent.com/davebx/galaxyproject-sqlite/master/20.01.sqlite'
-#GALAXY_TEMPLATE_DB="${GALAXY_TEMPLATE_DB_URL##*/}"
-# Unset to use create_db.py, which is fast now that it doesn't migrate new DBs
-GALAXY_TEMPLATE_DB_URL=
-GALAXY_TEMPLATE_DB='galaxy.sqlite'
-
 # Set by Actions, so the defaults here are for development
 GIT_COMMIT="${GITHUB_SHA:-$(git rev-parse HEAD)}"
 # GITHUB_RUN_ID is stable across re-runs, while GITHUB_RUN_ATTEMPT increments for each attempt.
@@ -511,16 +505,9 @@ function prep_for_galaxy_run() {
     # Sets globals $GALAXY_DATABASE_TMPDIR $WORKDIR
     log "Copying configs to Stratum 0"
     WORKDIR=$(exec_on mktemp -d -t usegalaxy-tools.work.XXXXXX)
-    if [ -n "$GALAXY_TEMPLATE_DB_URL" ]; then
-        log_exec curl -o ".ci/${GALAXY_TEMPLATE_DB}" "$GALAXY_TEMPLATE_DB_URL"
-        copy_to ".ci/${GALAXY_TEMPLATE_DB}"
-    fi
     copy_to ".ci/tool_sheds_conf.xml"
     copy_to ".ci/condarc"
     GALAXY_DATABASE_TMPDIR=$(exec_on mktemp -d -t usegalaxy-tools.database.XXXXXX)
-    if [ -n "$GALAXY_TEMPLATE_DB_URL" ]; then
-        exec_on mv "${WORKDIR}/${GALAXY_TEMPLATE_DB}" "${GALAXY_DATABASE_TMPDIR}"
-    fi
     if $GALAXY_DOCKER_IMAGE_PULL; then
         log "Fetching latest Galaxy image"
         exec_on docker pull "$GALAXY_DOCKER_IMAGE"
@@ -588,19 +575,9 @@ function run_mounted_galaxy() {
     exec_on docker exec --user "${USER_UID}:${USER_GID}" --workdir /galaxy/server -e "HOME=/galaxy/server/database" "$PRECONFIGURE_CONTAINER_NAME" ./.venv/bin/pip install -r requirements.txt
     commit_preconfigured_container
 
-    if [ -n "$GALAXY_TEMPLATE_DB_URL" ]; then
-        log "Updating database"
-        exec_on docker run --rm --label "$DOCKER_RUN_LABEL" --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}-setup" \
-            -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/${GALAXY_TEMPLATE_DB}" \
-            -v "${GALAXY_SOURCE_TMPDIR}:/galaxy/server" \
-            -v "${GALAXY_DATABASE_TMPDIR}:/galaxy/server/database" \
-            --workdir /galaxy/server \
-            "$GALAXY_DOCKER_IMAGE" ./.venv/bin/python ./scripts/manage_db.py upgrade
-    fi
-
     log "Starting Galaxy on Stratum 0"
     exec_on docker run -d --label "$DOCKER_RUN_LABEL" -p 127.0.0.1:${REMOTE_PORT}:8080 --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}" \
-        -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/${GALAXY_TEMPLATE_DB}" \
+        -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/galaxy.sqlite" \
         -e "GALAXY_CONFIG_OVERRIDE_INTEGRATED_TOOL_PANEL_CONFIG=/tmp/integrated_tool_panel.xml" \
         -e "GALAXY_CONFIG_OVERRIDE_SHED_TOOL_CONFIG_FILE=${SHED_TOOL_CONFIG}" \
         -e "GALAXY_CONFIG_OVERRIDE_MIGRATED_TOOLS_CONFIG=/abcdef" \
@@ -628,18 +605,10 @@ function run_cloudve_galaxy() {
 
     patch_cloudve_galaxy
 
-    if [ -n "$GALAXY_TEMPLATE_DB_URL" ]; then
-        log "Updating database"
-        exec_on docker run --rm --label "$DOCKER_RUN_LABEL" --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}-setup" \
-            -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/${GALAXY_TEMPLATE_DB}" \
-            -v "${GALAXY_DATABASE_TMPDIR}:/galaxy/server/database" \
-            "$GALAXY_DOCKER_IMAGE" ./.venv/bin/python ./scripts/manage_db.py upgrade
-    fi
-
     # we could just start the patch container and run Galaxy in it with `docker exec`, but then logs aren't captured
     log "Starting Galaxy on Stratum 0"
     exec_on docker run -d --label "$DOCKER_RUN_LABEL" -p 127.0.0.1:${REMOTE_PORT}:8080 --user "${USER_UID}:${USER_GID}" --name="${CONTAINER_NAME}" \
-        -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/${GALAXY_TEMPLATE_DB}" \
+        -e "GALAXY_CONFIG_OVERRIDE_DATABASE_CONNECTION=sqlite:////galaxy/server/database/galaxy.sqlite" \
         -e "GALAXY_CONFIG_OVERRIDE_INTEGRATED_TOOL_PANEL_CONFIG=/tmp/integrated_tool_panel.xml" \
         -e "GALAXY_CONFIG_OVERRIDE_SHED_TOOL_CONFIG_FILE=${SHED_TOOL_CONFIG}" \
         -e "GALAXY_CONFIG_OVERRIDE_MIGRATED_TOOLS_CONFIG=/abcdef" \
@@ -777,16 +746,6 @@ function install_tools() {
             show_paths
             log_exit_error "Terminating build due to previous errors"
         }
-        #shed-tools install -v -a deadbeef -t "$tool_yaml" --test --test_json "${tool_yaml##*/}"-test.json || {
-        #    # TODO: test here if test failures should be ignored (but we can't separate test failures from install
-        #    # failures at the moment) and also we can't easily get the job stderr
-        #    [ "$TRAVIS_PULL_REQUEST" == "false" -a "$TRAVIS_BRANCH" == "master" ] || {
-        #        log_error "Tool install/test failed";
-        #        show_logs
-        #        show_paths
-        #        log_exit_error "Terminating build due to previous errors"
-        #    };
-        #}
     done
 }
 
