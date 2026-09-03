@@ -35,7 +35,8 @@ jobs:
     runs-on:
       group: cvmfs-publish
       labels: cvmfs
-    # Requests the protected publish environment; its required reviewers are the deployment authorization gate.
+    # Scopes the Stratum 0 key to this job. Merging is the authorization gate; the environment adds no approval
+    # step of its own.
     environment: cvmfs-publish
     timeout-minutes: 180
     steps:
