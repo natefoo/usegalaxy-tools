@@ -39,7 +39,7 @@ In the commands below fill the `{server_name}` as appropriate (usegalaxy.org, te
 1. Commit `{server_name}/<repo>.yaml{.lock}`
 1. Create a PR against the default branch of [usegalaxy-tools](https://github.com/galaxyproject/usegalaxy-tools)
     - Use PR labels as appropriate
-    - To aid PR mergers, you can include information on tools in the repo's use of `$GALAXY_SLOTS`, or even PR any needed update(s) to [Main's job_conf.xml](https://github.com/galaxyproject/usegalaxy-playbook/blob/master/env/main/templates/galaxy/config/job_conf.xml.j2) as explained in the "[Determine tool requirements](#determine-tool-requirements)" section once the test installation succeeds (see details below)
+    - To aid PR mergers, you can include information on tools in the repo's use of `$GALAXY_SLOTS`, or even PR any needed update(s) to [Main's TPV tool config](https://github.com/galaxyproject/usegalaxy-playbook/blob/main/env/common/templates/galaxy/config/tpv/tools.yaml.j2) as explained in the "[Determine tool requirements](#determine-tool-requirements)" section once the test installation succeeds (see details below)
 1. Once the PR is merged and the tool appears on [usegalaxy.org](https://usegalaxy.org/) or [test.galaxyproject.org](https://test.galaxyproject.org), test to ensure the tool works.
 
 ## Loading tools in your Galaxy
@@ -108,7 +108,7 @@ Once preconditions are met:
       ```
       Warnings about `[WARNING] 'shed_tools/.../.wh..opq' should be deleted, but was not found in repository.` can be safely ignored.
 5. **If the deploy failed,** retry it with *Actions → Deploy tools to CVMFS →* the failed run *→ Re-run failed jobs*. If that is not possible, deployment can still be re-triggered by making a new PR with whitespace/order changes in the `.lock` file(s) modified in the original PR.
-6. If these are new tools and not just new versions of already installed tools, review whether the tool uses multiple cores (the presence of `${GALAXY_SLOTS:-N}` in `<command>`) and whether increased memory is required and PR changes to the TPV config in https://github.com/galaxyproject/usegalaxy-playbook/
+6. If these are new tools and not just new versions of already installed tools, review whether the tool uses multiple cores (the presence of `${GALAXY_SLOTS:-N}` in `<command>`) and whether increased memory is required and PR changes to [the TPV tool config](https://github.com/galaxyproject/usegalaxy-playbook/blob/main/env/common/templates/galaxy/config/tpv/tools.yaml.j2) in usegalaxy-playbook
 
 Only approved tool installers can install tools. Request admission to the Github Team from project admins for approval.
 
