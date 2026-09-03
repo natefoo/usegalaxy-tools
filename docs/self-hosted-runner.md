@@ -134,7 +134,7 @@ existing run directory is stale.
   - Add `@galaxyproject/tool-installers` as required reviewers. This is the deploy authorization gate, and it is
     separate from merge permission: approving the merge does not approve the publish. Self-review is allowed, so the
     person who merges can also release the deploy.
-- **Settings → Branches → branch protection for `master`**
+- **Settings → Branches → branch protection for the default branch**
   - Require the `test-install` check to pass before merging. The check always reports, including for PRs without tool
     changes; only its privileged installation dependency is conditional.
   - Require pull requests, with both **Require approvals** and **Require review from Code Owners**. The approval count

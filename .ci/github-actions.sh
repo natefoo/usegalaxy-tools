@@ -12,8 +12,8 @@ set -euo pipefail
 : ${PUBLISH:=false}
 
 # Range passed to `git diff` to detect changed tool files. The default is for running by hand on a PR branch; the
-# workflows pass an explicit range, since after a merge there is nothing left to diff against origin/master.
-: ${COMMIT_RANGE:=origin/master...}
+# workflows pass an explicit range, since after a merge there is nothing left to diff against origin/main.
+: ${COMMIT_RANGE:=origin/main...}
 
 # Scratch space for the per-run overlayfs and CVMFS mounts. Must NOT be $GITHUB_WORKSPACE: that is the git checkout,
 # and creating the overlay dirs inside it would pollute the working tree that detect_changes diffs.

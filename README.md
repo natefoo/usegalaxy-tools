@@ -37,7 +37,7 @@ In the commands below fill the `{server_name}` as appropriate (usegalaxy.org, te
 1. Run `make TOOLSET={server_name} lint`
     - Fix any issue that may arise and `git add` again
 1. Commit `{server_name}/<repo>.yaml{.lock}`
-1. Create a PR against the `master` branch of [usegalaxy-tools](https://github.com/galaxyproject/usegalaxy-tools)
+1. Create a PR against the default branch of [usegalaxy-tools](https://github.com/galaxyproject/usegalaxy-tools)
     - Use PR labels as appropriate
     - To aid PR mergers, you can include information on tools in the repo's use of `$GALAXY_SLOTS`, or even PR any needed update(s) to [Main's job_conf.xml](https://github.com/galaxyproject/usegalaxy-playbook/blob/master/env/main/templates/galaxy/config/job_conf.xml.j2) as explained in the "[Determine tool requirements](#determine-tool-requirements)" section once the test installation succeeds (see details below)
 1. Once the PR is merged and the tool appears on [usegalaxy.org](https://usegalaxy.org/) or [test.galaxyproject.org](https://test.galaxyproject.org), test to ensure the tool works.

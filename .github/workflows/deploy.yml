@@ -1,5 +1,5 @@
-# Install changed tools and publish them to CVMFS, on merge of a PR to master. Success or failure is reported back as
-# a comment on the merged PR, since by then nobody is watching the PR's checks.
+# Install changed tools and publish them to CVMFS, on merge of a PR to the default branch. Success or failure is
+# reported back as a comment on the merged PR, since by then nobody is watching the PR's checks.
 #
 # Retry a failed deploy with Actions -> Deploy tools to CVMFS -> the failed run -> "Re-run failed jobs".
 name: Deploy tools to CVMFS
@@ -15,7 +15,8 @@ name: Deploy tools to CVMFS
 on:
   pull_request_target:
     types: [closed]
-    branches: ["master"]
+    # "master" is transitional; drop it once the default branch is renamed.
+    branches: ["master", "main"]
     paths:
       - 'usegalaxy.org/**'
       - 'test.galaxyproject.org/**'
@@ -78,7 +79,8 @@ jobs:
       - name: Install and publish tools
         env:
           PUBLISH: 'true'
-          # The merge commit's first parent is master immediately before the merge, so this is the PR's net change.
+          # The merge commit's first parent is the default branch immediately before the merge, so this is the
+          # PR's net change.
           # Correct for both merge commits and squashes; rebase merging must stay disabled for it to hold.
           COMMIT_RANGE: ${{ github.event.pull_request.merge_commit_sha }}^1...${{ github.event.pull_request.merge_commit_sha }}
         run: .ci/github-actions.sh

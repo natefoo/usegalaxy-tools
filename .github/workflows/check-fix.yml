@@ -2,7 +2,8 @@ name: Check make fix
 
 on:
   pull_request:
-    branches: ["master"]
+    # "master" is transitional; drop it once the default branch is renamed.
+    branches: ["master", "main"]
 
 jobs:
   check-fix:
