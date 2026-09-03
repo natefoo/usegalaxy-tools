@@ -57,9 +57,11 @@ jobs:
           COMMIT_RANGE: ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
         run: .ci/github-actions.sh
 
+      # Unset if the install step never ran; upload-artifact rejects an empty path rather than honouring
+      # if-no-files-found, which would turn any earlier failure into two.
       - name: Upload Galaxy log
         uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && env.CI_LOG_DIR != ''
         with:
           name: galaxy-log
           path: ${{ env.CI_LOG_DIR }}
