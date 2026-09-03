@@ -52,6 +52,7 @@ tools:
   owner: devteam
   revisions:
   - 22970df7a40e
+  - a0d8e49a018c
   tool_panel_section_id: sam_bam
   tool_panel_section_label: SAM/BAM
 - name: samtools_bedcov
