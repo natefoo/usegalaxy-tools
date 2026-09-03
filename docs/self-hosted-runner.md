@@ -131,13 +131,17 @@ existing run directory is stale.
   - Workflow permissions: read-only by default.
 - **Settings → Environments → `cvmfs-publish`**
   - Secret `STRATUM0_SSH_KEY` — the private key authorized on the Stratum 0 hosts.
-  - Add `@galaxyproject/tool-installers` as required reviewers and prevent self-review. This is the deploy authorization
-    gate; ordinary merge permission is not sufficient.
+  - Add `@galaxyproject/tool-installers` as required reviewers. This is the deploy authorization gate, and it is
+    separate from merge permission: approving the merge does not approve the publish. Self-review is allowed, so the
+    person who merges can also release the deploy.
 - **Settings → Branches → branch protection for `master`**
   - Require the `test-install` check to pass before merging. The check always reports, including for PRs without tool
     changes; only its privileged installation dependency is conditional.
-  - Require pull requests and CODEOWNER approval, including for `.github/workflows/` and `.ci/`, without administrator
-    bypass.
+  - Require pull requests, with both **Require approvals** and **Require review from Code Owners**. The approval count
+    is path-agnostic; only the code owner requirement makes the split in `.github/CODEOWNERS` binding, so that a change
+    under `.ci/` or `.github/` needs `@galaxyproject/tool-installers-admins` rather than any tool installer. The deploy
+    workflow runs merged code with the Stratum 0 agent already loaded, so this is what bounds who can change what it
+    executes.
   - **Disable rebase merging.** The deploy workflow derives the PR's changes from
     `<merge_commit_sha>^1...<merge_commit_sha>`, which is correct for merge commits and squashes
     but not for rebase merges, where it would see only the PR's last commit.
