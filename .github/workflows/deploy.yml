@@ -4,8 +4,13 @@
 # Retry a failed deploy with Actions -> Deploy tools to CVMFS -> the failed run -> "Re-run failed jobs".
 name: Deploy tools to CVMFS
 
+# pull_request_target rather than pull_request: a fork-originated pull_request event gets no secrets and a read-only
+# token, so the Stratum 0 key would be empty and the result comment would be refused. pull_request_target runs in the
+# base repository's context, and takes the workflow from the default branch rather than from the PR, so a PR cannot
+# alter the job that handles the key. The usual danger of the trigger does not apply here because the only thing
+# checked out is the merge commit, which is already on master.
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
     branches: ["master"]
     paths:
@@ -93,9 +98,12 @@ jobs:
         if: always()
         run: ssh-agent -k || true
 
+      # CI_LOG_DIR is exported by .ci/github-actions.sh, so it is unset if the install step never ran. upload-artifact
+      # rejects an empty path outright rather than honouring if-no-files-found, which turns any earlier failure into
+      # two failures.
       - name: Upload Galaxy log
         uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && env.CI_LOG_DIR != ''
         with:
           name: galaxy-log
           path: ${{ env.CI_LOG_DIR }}
