@@ -105,8 +105,8 @@ GitHub cancels them **24 hours** later.
 
 ### Job-started hook
 
-Install the hook from `.ci/runner-job-started.sh` into each golden image — never run it from a repository checkout
-that a PR can modify:
+The hook lives in the Ansible playbook, not here, and is installed into each golden image — never run it from a
+repository checkout that a PR can modify:
 
 ```
 ACTIONS_RUNNER_HOOK_JOB_STARTED=/data/actions-runner-hooks/usegalaxy-tools-job-started.sh
