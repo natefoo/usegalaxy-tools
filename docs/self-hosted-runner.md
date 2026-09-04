@@ -59,13 +59,17 @@ and `cvmfs_server publish`, and to `rsync` the overlay upper dir across.
 
 ## Runner registration
 
-Create two **organization-level runner groups**, each visible only to `galaxyproject/usegalaxy-tools`, each with
-*Allow public repositories* and *Restrict to selected workflows* on, and each allowing exactly one workflow:
+Create two **organization-level runner groups**, each visible only to `galaxyproject/usegalaxy-tools` and each with
+*Allow public repositories* on.
 
-| group | allowed workflow |
-|---|---|
-| `cvmfs-test` | `galaxyproject/usegalaxy-tools/.github/workflows/test-install.yml` |
-| `cvmfs-publish` | `galaxyproject/usegalaxy-tools/.github/workflows/deploy.yml@refs/heads/main` |
+On `cvmfs-publish`, also turn on *Restrict to selected workflows* and allow exactly one:
+
+```
+galaxyproject/usegalaxy-tools/.github/workflows/deploy.yml@refs/heads/main
+```
+
+`cvmfs-test` is left unrestricted. A selected workflow must be pinned to a ref, and `test-install.yml` runs on
+`pull_request`, whose runs do not match a branch ref.
 
 Each group is served by its own host, and no host is ever in both. A just-in-time registration carries exactly the
 labels the hypervisor asks for, and none of the `self-hosted`/`Linux`/`X64` defaults that `config.sh` would add, so
