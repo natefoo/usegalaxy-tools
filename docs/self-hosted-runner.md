@@ -55,15 +55,17 @@ and `cvmfs_server publish`, and to `rsync` the overlay upper dir across.
   `StrictHostKeyChecking=yes`, so an absent or changed key stops the deploy.
 - **The private key is not stored on the runner.** It lives in the `cvmfs-publish` environment as
   the `STRATUM0_SSH_KEY` secret and is loaded into an `ssh-agent` for the life of the deploy job
-  only. The publish runner group only permits the default-branch deploy workflow, and required environment reviewers
-  provide a separate authorization gate. The agent is killed in an `if: always()` step.
+  only.
 
 ## Runner registration
 
-Create two **organization-level runner groups** that allow only selected workflows:
+Create two **organization-level runner groups**, each visible only to `galaxyproject/usegalaxy-tools`, each with
+*Allow public repositories* and *Restrict to selected workflows* on, and each allowing exactly one workflow:
 
-- `cvmfs-test` allows only `galaxyproject/usegalaxy-tools/.github/workflows/test-install.yml`.
-- `cvmfs-publish` allows only `galaxyproject/usegalaxy-tools/.github/workflows/deploy.yml` from the default branch.
+| group | allowed workflow |
+|---|---|
+| `cvmfs-test` | `galaxyproject/usegalaxy-tools/.github/workflows/test-install.yml` |
+| `cvmfs-publish` | `galaxyproject/usegalaxy-tools/.github/workflows/deploy.yml@refs/heads/main` |
 
 Each group is served by its own host, and no host is ever in both. A just-in-time registration carries exactly the
 labels the hypervisor asks for, and none of the `self-hosted`/`Linux`/`X64` defaults that `config.sh` would add, so
@@ -75,10 +77,8 @@ accept a `pull_request` job.
 ### Runner lifecycle
 
 Neither runner is registered persistently. Each host is a bhyve VM that runs **exactly one job per boot** and then
-powers itself off, and the hypervisor rolls its disk back to a clean snapshot before booting it again. On the test
-host that rollback is what prevents PR-controlled code from persisting into a later run; on the publish host it is not
-load-bearing, but keeping the two identical means there is one operational story rather than two. Provisioning of both
-the guest and hypervisor halves lives in the Ansible playbook, not in this repository.
+powers itself off, and the hypervisor rolls its disk back to a clean snapshot before booting it again. Provisioning of
+both the guest and hypervisor halves lives in the [Ansible playbook][infrastructure-playbook], not in this repository.
 
 One cycle:
 
@@ -87,26 +87,43 @@ One cycle:
    writes the returned config into the VM's `customer_metadata` as `jitconfig`.
 3. It starts the VM. The boot unit reads the config with `mdata-get`, removes it with `mdata-delete`, and execs
    `run.sh --jitconfig`.
-4. The runner takes one job, reports its result, deregisters itself, and exits. Only then does the guest power off, so
-   a job's status always reaches GitHub before the host goes away.
-
-Step 4 is the part worth preserving if any of this is reimplemented. Powering off from a job hook instead would race
-the runner's own completion report, turning successful deploys into red builds — and a deploy that publishes to CVMFS
-and then reports failure is exactly the "expected red build" habit this pipeline exists to eliminate.
+4. The runner takes one job, reports its result, deregisters itself, and exits.
+5. The guest powers off.
 
 Because the registration is generated on the hypervisor, neither VM holds a credential that can register a runner: a
-compromised test host cannot add itself to the publish group. It is also single-use, which is why the guest deletes it
-from metadata before any job code exists — the runner user reaches root through the `docker` group, so anything left
-in metadata is readable by the job.
+compromised test host cannot add itself to the publish group (and it is regardless single-use and consumed before any
+job code runs).
 
 If a rollback fails, the hypervisor leaves the VM stopped rather than starting it dirty, and repeated failed boots
 trip a backoff. Watch for that state: a group with no runner in it does not fail jobs, it queues them silently until
 GitHub cancels them **24 hours** later.
 
+### Hypervisor credential
+
+Minting a registration is the one privileged thing the hypervisor does, and it needs a token for it. That token is a
+**fine-grained personal access token**, currently owned by **@natefoo** — a personal credential doing an
+infrastructure job, which is worth knowing before it becomes a surprise.
+
+| | |
+|---|---|
+| Location | `/opt/custom/etc/gha-runner-cycle.token` on the hypervisor, `root:root`, mode `0600` |
+| Read by | `gha-runner-cycle.sh`, via the Ansible-managed conf beside it |
+| Resource owner | the `galaxyproject` organization |
+| Permission | **Organization permissions → Self-hosted runners → Read and write**, and nothing else |
+
+**Keep it off GitHub.** It must never become a repository or environment secret. A workflow able to read it could
+register a runner into the publish group, which is the boundary the split hosts exist to draw.
+
+**It expires.** Renew it before it does, and record the expiry date somewhere that is watched, because this credential
+fails in the quiet direction: once `generate-jitconfig` returns 401 the cycle script logs the failure and leaves the VM
+stopped, the runner group empties, and jobs queue against nothing until GitHub cancels them 24 hours later. Nothing
+turns red in the meantime. A job sitting in *Waiting for a runner* with an empty runner group is the symptom;
+`gha-runner-cycle.sh`'s log on the hypervisor is where the cause is visible.
+
 ### Job-started hook
 
-The hook lives in the Ansible playbook, not here, and is installed into each golden image — never run it from a
-repository checkout that a PR can modify:
+The hook lives in the [Ansible playbook][infrastructure-playbook], not here, and is installed into each golden image —
+never run it from a repository checkout that a PR can modify:
 
 ```
 ACTIONS_RUNNER_HOOK_JOB_STARTED=/data/actions-runner-hooks/usegalaxy-tools-job-started.sh
@@ -131,10 +148,11 @@ existing run directory is stale.
   - Workflow permissions: read-only by default.
 - **Settings → Environments → `cvmfs-publish`**
   - Secret `STRATUM0_SSH_KEY` — the private key authorized on the Stratum 0 hosts.
-  - Add `@galaxyproject/tool-installers` as required reviewers. This is the deploy authorization gate, and it is
-    separate from merge permission: approving the merge does not approve the publish. Self-review is allowed, so the
-    person who merges can also release the deploy.
-- **Settings → Branches → branch protection for `master`**
+    The environment exists to scope that secret, **not** to add an approval step: merging is the authorization gate,
+    and a second "Approve and deploy" click would only re-confirm a decision the same people made moments earlier.
+    Leave required reviewers unset. Deployment branch policy must stay at *No restriction* — a `pull_request_target`
+    run is `refs/pull/N/merge`, which no branch policy can match.
+- **Settings → Branches → branch protection for the default branch**
   - Require the `test-install` check to pass before merging. The check always reports, including for PRs without tool
     changes; only its privileged installation dependency is conditional.
   - Require pull requests, with both **Require approvals** and **Require review from Code Owners**. The approval count
@@ -146,34 +164,4 @@ existing run directory is stale.
     `<merge_commit_sha>^1...<merge_commit_sha>`, which is correct for merge commits and squashes
     but not for rebase merges, where it would see only the PR's last commit.
 
-## Verifying the runner
-
-Before pointing the real workflows at it, confirm the mount stack works under the runner user with
-a throwaway workflow that does nothing but mount and unmount:
-
-```yaml
-jobs:
-  smoke:
-    runs-on:
-      group: cvmfs-test
-      labels: cvmfs
-    steps:
-      - uses: actions/checkout@v7
-      - run: |
-          set -euo pipefail
-          export REPO_STRATUM0=cvmfs0-psu1.galaxyproject.org
-          export CVMFS_CACHE=/data/actions-runner/cvmfs-cache
-          export CVMFS_SOCKETS=/tmp/smoke/sockets
-          export RUN_DIR=/tmp/smoke
-          mkdir -p /tmp/smoke/{lower,upper,work,mount,sockets}
-          cvmfs2 -o config=.ci/cvmfs-fuse.conf,allow_root test.galaxyproject.org /tmp/smoke/lower
-          fuse-overlayfs -o lowerdir=/tmp/smoke/lower,upperdir=/tmp/smoke/upper,workdir=/tmp/smoke/work,allow_root /tmp/smoke/mount
-          ls /tmp/smoke/mount
-          fusermount -u /tmp/smoke/mount
-          fusermount -u /tmp/smoke/lower
-```
-
-Then open a PR that installs a single small tool on `test.galaxyproject.org` and check that the
-run summary shows the overlay upper contents and the `shed_tool_conf.xml` diff, and that the
-Stratum 0 revision (from `http://<stratum0>/cvmfs/<repo>/.cvmfspublished`) is **unchanged** — the
-test job must never publish.
+[infrastructure-playbook]: https://github.com/galaxyproject/infrastructure-playbook/
